@@ -1,0 +1,232 @@
+body {
+  font-family: "Cairo", Arial, sans-serif;
+  background: #f6f7fb;
+  color: #232323;
+  margin: 0;
+  padding: 0;
+  direction: rtl;
+}
+.main-content {
+  margin-right: var(--sidebar-width, 235px);
+  padding: 40px 18px 32px 18px;
+}
+.contractors-container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.contractors-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.contractors-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #1b3c66;
+  letter-spacing: 0.01em;
+  margin-bottom: 4px;
+}
+.add-contractor-btn {
+  background: #28527a;
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  padding: 11px 22px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 1px 6px #28527a11;
+  transition: background 0.16s;
+  margin-bottom: 0;
+}
+.add-contractor-btn:hover {
+  background: #173454;
+}
+.contractors-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+  margin-top: 18px;
+}
+.contractor-card {
+  background: #fff;
+  border-radius: 13px;
+  box-shadow: 0 2px 16px #38528214;
+  padding: 34px 28px 24px 28px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition:
+    box-shadow 0.18s,
+    transform 0.13s;
+  border: 2px solid transparent;
+  min-width: 0;
+}
+.contractor-card:hover {
+  box-shadow: 0 6px 32px #28527a20;
+  border-color: #bcccdd;
+  transform: translateY(-3px) scale(1.012);
+}
+.contractor-name {
+  font-size: 1.32rem;
+  font-weight: 800;
+  color: #24406e;
+  margin-bottom: 3px;
+}
+.contractor-balance-label {
+  font-size: 1.05rem;
+  color: #7d90ad;
+}
+.contractor-balance {
+  font-size: 1.29rem;
+  font-weight: bold;
+  color: #16753c;
+  margin-bottom: 0;
+  letter-spacing: 0.02em;
+}
+.contractor-balance.owed {
+  color: #c51818;
+}
+.open-account-btn {
+  align-self: flex-start;
+  margin-top: 8px;
+  background: #f0f4fa;
+  color: #28527a;
+  border: none;
+  border-radius: 6px;
+  padding: 9px 18px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.18s,
+    color 0.2s;
+  box-shadow: 0 1px 6px #28527a09;
+}
+.open-account-btn:hover {
+  background: #dbe8fb;
+  color: #173454;
+}
+@media (max-width: 1100px) {
+  .contractors-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 700px) {
+  .main-content {
+    padding: 24px 4vw 20px 4vw;
+  }
+  .contractors-title {
+    font-size: 1.35rem;
+  }
+  .contractors-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .contractor-card {
+    padding: 21px 11px 17px 11px;
+  }
+}
+
+/* Sidebar styles (kept here for pages that embed their own sidenav) */
+.sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 225px;
+  height: 100vh;
+  background: #1f365c;
+  color: #fff;
+  box-shadow: -2px 0 16px #0001;
+  display: flex;
+  flex-direction: column;
+  z-index: 300;
+  transition: right 0.25s;
+}
+.sidebar .app-title {
+  font-size: 1.38rem;
+  font-weight: 700;
+  text-align: center;
+  margin: 23px 0 28px 0;
+  letter-spacing: 1px;
+}
+.sidebar ul {
+  list-style: none;
+  padding: 0 0 0 0;
+  margin: 0;
+  flex: 1;
+}
+.sidebar a {
+  display: block;
+  color: #e4e9f6;
+  text-decoration: none;
+  font-size: 1.07rem;
+  padding: 15px 29px;
+  border-right: 4px solid transparent;
+  transition:
+    background 0.13s,
+    color 0.13s,
+    border-color 0.13s;
+  font-weight: 500;
+}
+.sidebar a.active,
+.sidebar a:focus {
+  background: #284b71;
+  color: #fff;
+  border-right: 4px solid #3e82dc;
+}
+.sidebar a:hover {
+  background: #27406b;
+  color: #f5faff;
+}
+.sidebar .sidenav-spacer {
+  flex: 1;
+}
+.hamburger {
+  display: none;
+  position: fixed;
+  right: 16px;
+  top: 14px;
+  width: 40px;
+  height: 40px;
+  z-index: 310;
+  background: #1f365c;
+  border-radius: 7px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 7px #18518c17;
+}
+.hamburger span,
+.hamburger span:before,
+.hamburger span:after {
+  display: block;
+  width: 24px;
+  height: 3.3px;
+  background: #fff;
+  border-radius: 2px;
+  position: absolute;
+}
+@media (max-width: 900px) {
+  .sidebar {
+    width: 190px;
+  }
+}
+@media (max-width: 700px) {
+  .sidebar {
+    right: -210px;
+    width: 180px;
+    box-shadow: none;
+  }
+  .sidebar.open {
+    right: 0;
+    box-shadow: -2px 0 14px #0003;
+  }
+  .hamburger {
+    display: flex;
+  }
+}
