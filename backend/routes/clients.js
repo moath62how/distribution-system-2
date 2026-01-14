@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const ApiFeatures = require('../controllers/apiFeatures');
 
 const router = express.Router();
 
@@ -38,12 +39,18 @@ async function computeClientTotals(clientId) {
     };
 }
 
-// Get all clients with balances
+// Get all clients with balances, supporting search, filter, sort, pagination
 router.get('/', async (req, res, next) => {
     try {
-        const clients = await db('clients')
-            .select('id', 'name', 'phone', 'opening_balance')
-            .orderBy('id', 'desc');
+        const baseQuery = db('clients').select('id', 'name', 'phone', 'opening_balance');
+        const features = new ApiFeatures(baseQuery, req.query);
+        await features
+            .search(['name', 'phone'])
+            .filter(['id'])
+            .sort('-id')
+            .paginate(25);
+
+        const { data: clients, pagination } = await features.get();
 
         const enriched = await Promise.all(
             clients.map(async (client) => {
@@ -52,7 +59,7 @@ router.get('/', async (req, res, next) => {
             })
         );
 
-        res.json(enriched);
+        res.json({ data: enriched, pagination });
     } catch (err) {
         next(err);
     }
@@ -79,7 +86,7 @@ router.post('/', async (req, res, next) => {
     }
 });
 
-// Client details with deliveries, payments, adjustments
+// Client details with deliveries, payments, adjustments, and material totals
 router.get('/:id', async (req, res, next) => {
     try {
         const { id } = req.params;
@@ -101,6 +108,23 @@ router.get('/:id', async (req, res, next) => {
             .where('d.client_id', id)
             .orderBy('d.created_at', 'desc');
 
+        deliveries.forEach(d => {
+            const price = Number(d.price_per_meter || 0);
+            const qty = Number(d.quantity || 0);
+            d.total_value = price * qty;
+        });
+
+        // Calculate material totals
+        const materialMap = {};
+        deliveries.forEach(d => {
+            const key = (d.material || 'غير محدد').toString();
+            if (!materialMap[key]) materialMap[key] = { totalQty: 0, totalValue: 0 };
+            materialMap[key].totalQty += Number(d.quantity || 0);
+            materialMap[key].totalValue += Number(d.total_value || 0);
+        });
+        const materialTotals = Object.keys(materialMap).map(k => ({ material: k, ...materialMap[k] }));
+        materialTotals.sort((a, b) => b.totalQty - a.totalQty);
+
         const payments = await db('payments')
             .where({ client_id: id })
             .orderBy('paid_at', 'desc');
@@ -109,7 +133,7 @@ router.get('/:id', async (req, res, next) => {
             .where({ entity_type: 'client', entity_id: id })
             .orderBy('created_at', 'desc');
 
-        res.json({ client, totals, deliveries, payments, adjustments });
+        res.json({ client, totals, deliveries, payments, adjustments, materialTotals });
     } catch (err) {
         next(err);
     }

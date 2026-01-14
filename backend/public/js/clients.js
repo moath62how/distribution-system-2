@@ -9,6 +9,10 @@ const API_BASE = (function () {
     }
 })();
 
+let currentPage = 1;
+let currentSearch = '';
+let totalPages = 1;
+
 // --- Helpers ---
 
 function formatCurrency(amount) {
@@ -84,6 +88,44 @@ function renderClients(clients) {
     container.appendChild(grid);
 }
 
+function renderPagination(pagination) {
+    if (!pagination) return;
+
+    const container = document.getElementById('paginationContainer');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    const nav = document.createElement('nav');
+    nav.className = 'pagination';
+
+    // Previous button
+    if (pagination.page > 1) {
+        const prevBtn = document.createElement('button');
+        prevBtn.textContent = 'السابق';
+        prevBtn.className = 'pagination-btn';
+        prevBtn.addEventListener('click', () => loadClients(pagination.page - 1));
+        nav.appendChild(prevBtn);
+    }
+
+    // Page info
+    const pageInfo = document.createElement('span');
+    pageInfo.className = 'pagination-info';
+    pageInfo.textContent = `صفحة ${pagination.page} من ${pagination.pages}`;
+    nav.appendChild(pageInfo);
+
+    // Next button
+    if (pagination.page < pagination.pages) {
+        const nextBtn = document.createElement('button');
+        nextBtn.textContent = 'التالي';
+        nextBtn.className = 'pagination-btn';
+        nextBtn.addEventListener('click', () => loadClients(pagination.page + 1));
+        nav.appendChild(nextBtn);
+    }
+
+    container.appendChild(nav);
+}
+
 // --- Responsive styles injection ---
 (function injectClientsCss() {
     const style = document.createElement('style');
@@ -148,25 +190,139 @@ function renderClients(clients) {
         background: #174886;
         box-shadow: 0 3px 14px #28527a22;
     }
+    #paginationContainer {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 32px 0;
+        gap: 16px;
+    }
+    .pagination {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        justify-content: center;
+    }
+    .pagination-btn {
+        padding: 8px 16px;
+        background: #2d6cdf;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.95rem;
+        transition: background 0.14s;
+    }
+    .pagination-btn:hover {
+        background: #174886;
+    }
+    .pagination-info {
+        font-size: 0.95rem;
+        color: #555;
+        font-weight: 500;
+    }
+    #searchContainer {
+        max-width: 1100px;
+        margin: 16px auto 0;
+        padding: 0 14px;
+        display: flex;
+        gap: 8px;
+    }
+    #clientSearch {
+        flex: 1;
+        padding: 10px 12px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        font-family: 'Cairo', Arial, sans-serif;
+    }
+    #clientSearch:focus {
+        outline: none;
+        border-color: #2d6cdf;
+        box-shadow: 0 0 0 3px rgba(45, 108, 223, 0.1);
+    }
+    #searchBtn {
+        padding: 10px 20px;
+        background: #2d6cdf;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-family: 'Cairo', Arial, sans-serif;
+        transition: background 0.14s;
+    }
+    #searchBtn:hover {
+        background: #174886;
+    }
     @media (max-width: 680px) {
         .client-card { padding: 18px 11px 14px 11px; }
         .clients-grid { gap: 13px; }
         #clientsContainer { padding: 0 4px; }
+        #searchContainer { flex-direction: column; }
     }
     `;
     document.head.appendChild(style);
 })();
 
-async function fetchClients() {
-    const resp = await fetch(`${API_BASE}/clients`);
+async function loadClients(page = 1) {
+    const params = new URLSearchParams();
+    params.set('page', page);
+    params.set('limit', 25);
+    if (currentSearch) {
+        params.set('q', currentSearch);
+    }
+
+    const resp = await fetch(`${API_BASE}/clients?${params}`);
+
     if (!resp.ok) throw new Error('تعذر تحميل العملاء');
-    return resp.json();
+    const result = await resp.json();
+
+    renderClients(result.data);
+    if (result.pagination) {
+        renderPagination(result.pagination);
+        currentPage = result.pagination.page;
+    }
+}
+
+async function fetchClients() {
+    return loadClients(1);
 }
 
 // --- Initialization on DOMContentLoaded ---
 document.addEventListener('DOMContentLoaded', function () {
+    // Create search container
+    const searchContainer = document.createElement('div');
+    searchContainer.id = 'searchContainer';
+    const searchInput = document.createElement('input');
+    searchInput.id = 'clientSearch';
+    searchInput.type = 'text';
+    searchInput.placeholder = 'ابحث عن عميل...';
+
+    const searchBtn = document.createElement('button');
+    searchBtn.id = 'searchBtn';
+    searchBtn.textContent = 'بحث';
+    searchBtn.addEventListener('click', () => {
+        currentSearch = searchInput.value;
+        loadClients(1);
+    });
+
+    searchInput.addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') {
+            currentSearch = searchInput.value;
+            loadClients(1);
+        }
+    });
+
+    searchContainer.appendChild(searchInput);
+    searchContainer.appendChild(searchBtn);
+    document.body.insertBefore(searchContainer, document.getElementById('clientsContainer'));
+
+    // Create pagination container
+    const paginationContainer = document.createElement('div');
+    paginationContainer.id = 'paginationContainer';
+    document.body.appendChild(paginationContainer);
+
     fetchClients()
-        .then(renderClients)
         .catch(err => {
             console.error(err);
             const container = document.getElementById('clientsContainer') || document.body;
