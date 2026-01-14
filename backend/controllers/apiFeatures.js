@@ -34,7 +34,7 @@ class ApiFeatures {
     }
 
     sort(defaultSort) {
-        const sort = this.query.sort;
+        const sort = this.query.sort || defaultSort;
         if (sort) {
             const fields = sort.split(',');
             fields.forEach((s) => {
@@ -46,8 +46,6 @@ class ApiFeatures {
                 }
                 this._qb.orderBy(field, dir);
             });
-        } else if (defaultSort) {
-            this._qb.orderBy(defaultSort);
         }
         return this;
     }
