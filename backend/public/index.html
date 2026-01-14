@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <title>لوحة التحكم - توزيع</title>
@@ -10,6 +11,7 @@
         body {
             background: #f6f8fb;
         }
+
         /* Sidebar styles */
         .sidebar {
             position: fixed;
@@ -25,6 +27,7 @@
             z-index: 300;
             transition: right 0.25s;
         }
+
         .sidebar .app-title {
             font-size: 1.38rem;
             font-weight: 700;
@@ -32,16 +35,19 @@
             margin: 23px 0 28px 0;
             letter-spacing: 1px;
         }
+
         .sidebar ul {
             list-style: none;
             padding: 0 0 0 0;
             margin: 0;
             flex: 1;
         }
+
         .sidebar li {
             margin: 0;
             padding: 0;
         }
+
         .sidebar a {
             display: block;
             color: #e4e9f6;
@@ -52,19 +58,23 @@
             transition: background 0.13s, color 0.13s, border-color 0.13s;
             font-weight: 500;
         }
+
         .sidebar a.active,
         .sidebar a:focus {
             background: #284b71;
             color: #fff;
             border-right: 4px solid #3e82dc;
         }
+
         .sidebar a:hover {
             background: #27406b;
             color: #f5faff;
         }
+
         .sidebar .sidenav-spacer {
             flex: 1;
         }
+
         /* Hamburger Button */
         .hamburger {
             display: none;
@@ -81,6 +91,7 @@
             justify-content: center;
             box-shadow: 0 2px 7px #18518c17;
         }
+
         .hamburger span,
         .hamburger span:before,
         .hamburger span:after {
@@ -91,34 +102,41 @@
             border-radius: 2px;
             position: absolute;
         }
+
         .hamburger span {
             position: relative;
         }
+
         .hamburger span:before {
             content: "";
             position: absolute;
             top: -8px;
         }
+
         .hamburger span:after {
             content: "";
             position: absolute;
             top: 8px;
         }
+
         @media (max-width: 900px) {
             .sidebar {
                 width: 190px;
             }
         }
+
         @media (max-width: 700px) {
             .sidebar {
                 right: -210px;
                 width: 180px;
                 box-shadow: none;
             }
+
             .sidebar.open {
                 right: 0;
                 box-shadow: -2px 0 14px #0003;
             }
+
             .hamburger {
                 display: flex;
             }
@@ -131,17 +149,20 @@
             min-height: 100vh;
             transition: margin-right 0.25s;
         }
+
         @media (max-width: 900px) {
             .main {
                 margin-right: 190px;
             }
         }
+
         @media (max-width: 700px) {
             .main {
                 margin-right: 0;
                 padding: 28px 7px 24px 7px;
             }
         }
+
         /* Dashboard cards */
         .dashboard-cards {
             display: grid;
@@ -149,6 +170,7 @@
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             margin-bottom: 36px;
         }
+
         .dashboard-card {
             background: #f9fbff;
             border: 1.7px solid #d3e7ff;
@@ -162,6 +184,7 @@
             transition: box-shadow 0.13s, border 0.13s;
             position: relative;
         }
+
         .dashboard-card .card-value {
             font-size: 2.12rem;
             color: #247ae0;
@@ -169,21 +192,42 @@
             direction: ltr;
             margin-bottom: 7px;
         }
+
         .dashboard-card .card-label {
             font-size: 1.105rem;
             color: #3c5275;
             font-weight: 500;
         }
-        .dashboard-card.sales .card-value { color: #2d6e3a; }
-        .dashboard-card.profit .card-value { color: #ba7e18; }
-        .dashboard-card.customers .card-value { color: #2d5397; }
-        .dashboard-card.deliveries .card-value { color: #247ae0; }
-        .dashboard-card.quarries .card-value { color: #285236; }
-        .dashboard-card.contractors .card-value { color: #c0392b; }
+
+        .dashboard-card.sales .card-value {
+            color: #2d6e3a;
+        }
+
+        .dashboard-card.profit .card-value {
+            color: #ba7e18;
+        }
+
+        .dashboard-card.customers .card-value {
+            color: #2d5397;
+        }
+
+        .dashboard-card.deliveries .card-value {
+            color: #247ae0;
+        }
+
+        .dashboard-card.quarries .card-value {
+            color: #285236;
+        }
+
+        .dashboard-card.contractors .card-value {
+            color: #c0392b;
+        }
+
         /* Chart section */
         .dashboard-charts-section {
             margin-top: 27px;
         }
+
         .charts-title {
             font-weight: 600;
             color: #27406b;
@@ -191,11 +235,13 @@
             margin-bottom: 18px;
             margin-top: 0;
         }
+
         .charts-placeholders {
             display: grid;
             gap: 24px;
-            grid-template-columns: repeat(auto-fit,minmax(300px,1fr));
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
         }
+
         .chart-placeholder {
             background: #f3f7fa;
             border: 1.25px solid #dae6f6;
@@ -208,11 +254,13 @@
             font-size: 1.13rem;
             font-style: italic;
         }
+
         @media (max-width: 600px) {
             .dashboard-cards {
                 grid-template-columns: 1fr;
                 gap: 15px;
             }
+
             .charts-placeholders {
                 grid-template-columns: 1fr;
                 gap: 14px;
@@ -220,6 +268,7 @@
         }
     </style>
 </head>
+
 <body>
     <!-- Hamburger menu for mobile -->
     <button class="hamburger" id="sidebarHamburger" aria-label="القائمة الجانبية">
@@ -229,7 +278,7 @@
     <nav class="sidebar" id="sidebar">
         <div class="app-title">نظام التوزيع</div>
         <ul>
-            <li><a href="dashboard.html" class="active">لوحة التحكم</a></li>
+            <li><a href="index.html" class="active">لوحة التحكم</a></li>
             <li><a href="clients.html">العملاء</a></li>
             <li><a href="crushers.html">الكسارات</a></li>
             <li><a href="contractors.html">مقاولين العجل</a></li>
@@ -286,11 +335,11 @@
         // Hamburger menu behavior
         const sidebar = document.getElementById('sidebar');
         const hamburger = document.getElementById('sidebarHamburger');
-        hamburger.addEventListener('click', function() {
+        hamburger.addEventListener('click', function () {
             sidebar.classList.toggle('open');
         });
         // عند ضغط خارج القائمة الجانبية على الموبايل تُغلق تلقائيا
-        document.body.addEventListener('click', function(e) {
+        document.body.addEventListener('click', function (e) {
             if (window.innerWidth <= 700 && sidebar.classList.contains('open')) {
                 if (!sidebar.contains(e.target) && e.target !== hamburger) {
                     sidebar.classList.remove('open');
@@ -298,7 +347,7 @@
             }
         });
         // إغلاق القائمة عند تغيير حجم الشاشة
-        window.addEventListener('resize', function() {
+        window.addEventListener('resize', function () {
             if (window.innerWidth > 700 && sidebar.classList.contains('open')) {
                 sidebar.classList.remove('open');
             }
@@ -306,4 +355,5 @@
     </script>
     <script src="../js/dashboard.js"></script>
 </body>
+
 </html>

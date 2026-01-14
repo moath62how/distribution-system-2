@@ -21,8 +21,8 @@ async function bootstrap() {
   const app = express();
   app.use(morgan('dev'));
   // View engine setup
-  app.set('view engine', 'pug');
-  app.set('views', path.join(__dirname, 'views'));
+  //// app.set('view engine', 'pug');
+  //// app.set('views', path.join(__dirname, 'views'));
 
   // Middleware
   app.use(express.json());
@@ -52,7 +52,7 @@ async function bootstrap() {
   });
 
   // Web routes (SSR with Pug)
-  app.use('/', webRouter);
+  //// app.use('/', webRouter);
 
   // API routes (keep for backward compatibility or mobile apps)
   app.use('/api/clients', clientsApiRouter);
