@@ -3,6 +3,7 @@ const express = require('express');
 const path = require('path');
 const session = require('express-session');
 const flash = require('connect-flash');
+const morgan = require('morgan');
 const db = require('./db');
 
 // Import API routes (keep for backward compatibility if needed)
@@ -18,7 +19,7 @@ async function bootstrap() {
   await db.ensureTables();
 
   const app = express();
-
+  app.use(morgan('dev'));
   // View engine setup
   app.set('view engine', 'pug');
   app.set('views', path.join(__dirname, 'views'));

@@ -76,7 +76,7 @@ async function ensureTables() {
         .inTable('contractors')
         .onDelete('SET NULL');
       table.string('material', 120);
-      table.string('voucher', 120);
+      table.string('voucher', 120).unique();
       table.decimal('quantity', 12, 3).defaultTo(0); // الكمية الأصلية
       table.decimal('discount_volume', 12, 3).defaultTo(0); // خصم تكعيب
       table.decimal('net_quantity', 12, 3).defaultTo(0); // بعد الخصم

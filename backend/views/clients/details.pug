@@ -22,14 +22,14 @@ block content
            
             tr.border-b
               td.py-3.px-4.font-semibold.text-gray-700 إجمالي التسليمات
-              td.py-3.px-4.text-gray-900= totals.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP', minimumFractionDigits: 2 })
+              td.py-3.px-4.text-gray-900= totals.totalDeliveries.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP', minimumFractionDigits: 2 })
             
             tr.border-b
               td.py-3.px-4.font-semibold.text-gray-700 إجمالي المدفوعات
               td.py-3.px-4.text-gray-900= totals.totalPayments.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP', minimumFractionDigits: 2 })
             
             tr.border-b
-              td.py-3.px-4.font-semibold.text-gray-700 إجمالي التعديلات
+              td.py-3.px-4.font-semibold.text-gray-700 إجمالي التسويات
               td.py-3.px-4.text-gray-900= totals.totalAdjustments.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP', minimumFractionDigits: 2 })
             
             tr.bg-blue-50
@@ -40,6 +40,8 @@ block content
               td.py-3.px-4.font-bold.text-lg(
                 class= bal < 0 ? 'text-green-600' : bal > 0 ? 'text-red-600' : 'text-gray-600'
               )= balStr + balSuffix
+
+    //- Material Totals Cards
     
     //- Deliveries Section
     .bg-white.rounded-xl.shadow-md.p-6.mb-6
@@ -124,7 +126,15 @@ block content
                   td.border.border-gray-200.px-3.py-2= adjustment.reason || '-'
       else
         p.text-center.text-gray-500.py-4 لا توجد تسويات
-
+    if materialTotals && materialTotals.length
+      .grid(class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6")
+        each m in materialTotals
+          .bg-white.rounded-xl.shadow-md.p-6.flex.flex-col
+            .text-sm.text-gray-600.mb-2 نوع الحمولة
+            .text-xl.font-bold.mb-2= m.material
+            .text-gray-700.mb-1 كمية: 
+              span.font-semibold.ml-2= (m.totalQty || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2 }) + ' م³'
+       
 block scripts
   script(src="https://cdn.jsdelivr.net/npm/sweetalert2@11")
   script.

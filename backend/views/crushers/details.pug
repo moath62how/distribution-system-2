@@ -83,3 +83,11 @@ block content
                   td.border.border-gray-200.px-3.py-2= a.reason || '-'
       else
         p.text-center.text-gray-500.py-4 لا توجد تسويات
+    if materialTotals && materialTotals.length
+      .grid(class="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6 mb-6")
+        each m in materialTotals
+          .bg-white.rounded-xl.shadow-md.p-6.flex.flex-col
+            .text-sm.text-gray-600.mb-2 نوع الحمولة
+            .text-xl.font-bold.mb-2= m.material
+            .text-gray-700.mb-1 كمية: 
+              span.font-semibold.ml-2= (m.totalQty || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2 }) + ' م³'

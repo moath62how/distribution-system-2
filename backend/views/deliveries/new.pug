@@ -200,28 +200,7 @@ block content
               class="focus:border-blue-500 focus:outline-none"
             )
         
-        //- Contractor Charge
-        .mb-6
-          label.block.text-lg.font-bold.text-blue-900.mb-2(for="contractorCharge")
-            | مستحق مقاول النقل (اختياري)
-          input#contractorCharge.w-full.px-4.py-3.rounded-lg.border.border-gray-300.bg-gray-50.text-blue-900.text-lg.transition-colors(
-            type="number"
-            name="contractor_charge"
-            min="0"
-            step="0.01"
-            placeholder="مثال: 2500"
-            class="focus:border-blue-500 focus:outline-none"
-          )
         
-        //- Total (Read-only)
-        .mb-6
-          label.block.text-lg.font-bold.text-blue-900.mb-2(for="total")
-            | الإجمالي
-          input#total.w-full.px-4.py-3.rounded-lg.border.border-gray-300.bg-blue-50.text-blue-900.font-semibold.text-lg(
-            type="text"
-            readonly
-            class="cursor-not-allowed"
-          )
         
         //- Submit Button
         button.w-full.bg-blue-900.text-white.py-4.rounded-lg.text-xl.font-bold.shadow-lg.transition-colors(
