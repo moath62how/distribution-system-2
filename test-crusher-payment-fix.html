@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>اختبار إصلاح دفعات الكسارات</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        .btn { 
+            padding: 10px 20px; 
+            margin: 5px; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+        }
+        .btn:hover { background: #0056b3; }
+        #results { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>اختبار إصلاح دفعات الكسارات</h1>
+    
+    <div class="test-section">
+        <h2>المشكلة المبلغ عنها:</h2>
+        <p class="error">❌ 500 Internal Server Error عند إضافة دفعة للكسارة</p>
+        <p class="info">ℹ️ السبب: تضارب في أسماء الأعمدة - crusher_payments يستخدم 'payment_method' بدلاً من 'method'</p>
+        <p class="success">✅ تم إصلاح الـ backend ليستخدم 'payment_method' للكسارات</p>
+    </div>
+    
+    <div class="test-section">
+        <h2>مقارنة أسماء الأعمدة:</h2>
+        <table border="1" style="border-collapse: collapse; width: 100%;">
+            <tr>
+                <th>الجدول</th>
+                <th>عمود طريقة الدفع</th>
+                <th>الحالة</th>
+            </tr>
+            <tr>
+                <td>payments (عملاء)</td>
+                <td>method</td>
+                <td class="success">✅ يعمل</td>
+            </tr>
+            <tr>
+                <td>contractor_payments (مقاولين)</td>
+                <td>method</td>
+                <td class="success">✅ يعمل</td>
+            </tr>
+            <tr>
+                <td>crusher_payments (كسارات)</td>
+                <td>payment_method</td>
+                <td class="success">✅ تم الإصلاح</td>
+            </tr>
+        </table>
+    </div>
+    
+    <div class="test-section">
+        <h2>اختبار دفعات الكسارات:</h2>
+        <button class="btn" onclick="testAddCrusherPayment()">اختبار إضافة دفعة كسارة</button>
+        <button class="btn" onclick="testGetCrusherPayments()">اختبار جلب دفعات الكسارة</button>
+        <button class="btn" onclick="testCrusherDetails()">اختبار تفاصيل الكسارة</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>الإصلاح المطبق:</h2>
+        <h3>قبل الإصلاح:</h3>
+        <pre>
+const paymentData = {
+    crusher_id: crusherId,
+    amount: parseFloat(amount),
+    method: method || 'نقدي',  // ❌ خطأ - الجدول يستخدم payment_method
+    // ...
+};
+        </pre>
+        
+        <h3>بعد الإصلاح:</h3>
+        <pre>
+const paymentData = {
+    crusher_id: crusherId,
+    amount: parseFloat(amount),
+    payment_method: method || 'نقدي',  // ✅ صحيح - يطابق schema الجدول
+    // ...
+};
+        </pre>
+    </div>
+    
+    <div class="test-section">
+        <h2>النتائج:</h2>
+        <div id="results">انقر على أي زر أعلاه لبدء الاختبار...</div>
+    </div>
+
+    <script>
+        const API_BASE = (function () {
+            try {
+                const origin = window.location.origin;
+                if (!origin || origin === 'null') return 'http://localhost:5000/api';
+                return origin.replace(/\/$/, '') + '/api';
+            } catch (e) {
+                return 'http://localhost:5000/api';
+            }
+        })();
+        
+        function log(message) {
+            const results = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            results.textContent += `[${timestamp}] ${message}\n`;
+            console.log(message);
+        }
+        
+        function clearLog() {
+            document.getElementById('results').textContent = '';
+        }
+        
+        async function testAddCrusherPayment() {
+            clearLog();
+            log('🧪 اختبار إضافة دفعة للكسارة...');
+            log(`API Base: ${API_BASE}`);
+            
+            const crusherId = 1; // افتراض أن الكسارة رقم 1 موجودة
+            const testPayment = {
+                amount: 500,
+                method: 'نقدي',
+                note: 'دفعة تجريبية - ' + new Date().getTime(),
+                date: new Date().toISOString().split('T')[0]
+            };
+            
+            try {
+                log(`📤 إرسال POST إلى: ${API_BASE}/crushers/${crusherId}/payments`);
+                log(`📦 البيانات: ${JSON.stringify(testPayment, null, 2)}`);
+                
+                const response = await fetch(`${API_BASE}/crushers/${crusherId}/payments`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testPayment)
+                });
+                
+                log(`📥 استجابة HTTP: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    log(`❌ خطأ في الاستجابة: ${errorText}`);
+                    return;
+                }
+                
+                const result = await response.json();
+                log(`✅ نجح إضافة الدفعة!`);
+                log(`📋 الدفعة الجديدة: ${JSON.stringify(result, null, 2)}`);
+                
+                // Check if payment_method is correctly saved
+                if (result.payment_method) {
+                    log(`✅ payment_method محفوظ بشكل صحيح: ${result.payment_method}`);
+                } else if (result.method) {
+                    log(`⚠️ تم حفظ method بدلاً من payment_method: ${result.method}`);
+                } else {
+                    log(`❌ لم يتم حفظ طريقة الدفع`);
+                }
+                
+            } catch (error) {
+                log(`❌ خطأ في الشبكة: ${error.message}`);
+                log(`🔍 تفاصيل الخطأ: ${error.stack}`);
+            }
+        }
+        
+        async function testGetCrusherPayments() {
+            clearLog();
+            log('🧪 اختبار جلب دفعات الكسارة...');
+            
+            const crusherId = 1;
+            
+            try {
+                log(`📤 إرسال GET إلى: ${API_BASE}/crushers/${crusherId}`);
+                
+                const response = await fetch(`${API_BASE}/crushers/${crusherId}`);
+                
+                log(`📥 استجابة HTTP: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    log(`❌ خطأ في الاستجابة: ${errorText}`);
+                    return;
+                }
+                
+                const result = await response.json();
+                log(`✅ نجح جلب بيانات الكسارة!`);
+                
+                if (result.payments && result.payments.length > 0) {
+                    log(`📋 عدد الدفعات: ${result.payments.length}`);
+                    log(`📋 أول دفعة: ${JSON.stringify(result.payments[0], null, 2)}`);
+                    
+                    // Check column names in fetched data
+                    const firstPayment = result.payments[0];
+                    if (firstPayment.payment_method) {
+                        log(`✅ البيانات تحتوي على payment_method: ${firstPayment.payment_method}`);
+                    } else if (firstPayment.method) {
+                        log(`⚠️ البيانات تحتوي على method: ${firstPayment.method}`);
+                    } else {
+                        log(`❌ لا توجد معلومات طريقة الدفع`);
+                    }
+                } else {
+                    log(`📋 لا توجد دفعات للكسارة`);
+                }
+                
+            } catch (error) {
+                log(`❌ خطأ في الشبكة: ${error.message}`);
+            }
+        }
+        
+        async function testCrusherDetails() {
+            clearLog();
+            log('🧪 اختبار تفاصيل الكسارة...');
+            
+            try {
+                // Test if crusher details page loads without errors
+                log(`🌐 فتح صفحة تفاصيل الكسارة...`);
+                log(`📄 URL: crusher-details.html?id=1`);
+                log(`💡 افتح الرابط في تبويب جديد وتحقق من:`);
+                log(`   - هل تُحمل الصفحة بدون أخطاء؟`);
+                log(`   - هل تظهر الدفعات بشكل صحيح؟`);
+                log(`   - هل يمكن إضافة دفعة جديدة؟`);
+                
+                // Test the API endpoint directly
+                const response = await fetch(`${API_BASE}/crushers/1`);
+                if (response.ok) {
+                    log(`✅ API endpoint يعمل بشكل صحيح`);
+                } else {
+                    log(`❌ API endpoint لا يعمل: ${response.status}`);
+                }
+                
+            } catch (error) {
+                log(`❌ خطأ في الاختبار: ${error.message}`);
+            }
+        }
+        
+        // Test on page load
+        window.addEventListener('load', () => {
+            log('🚀 صفحة اختبار دفعات الكسارات جاهزة');
+            log(`🌐 API Base URL: ${API_BASE}`);
+            log('💡 انقر على الأزرار أعلاه لاختبار الإصلاحات');
+            log('');
+            log('🔧 الإصلاح المطبق:');
+            log('- تم تغيير method إلى payment_method في crusher payments');
+            log('- تم إصلاح كل من POST و PUT routes');
+            log('- الآن متوافق مع schema قاعدة البيانات');
+        });
+    </script>
+</body>
+</html>

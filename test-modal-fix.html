@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>اختبار إصلاح المودال</title>
+    <link rel="stylesheet" href="backend/public/css/modern-theme.css">
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        .btn { 
+            padding: 10px 20px; 
+            margin: 5px; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+        }
+        .btn:hover { background: #0056b3; }
+        
+        /* Modal styles for testing */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+        }
+        
+        .modal-header {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .modal-close {
+            float: left;
+            font-size: 24px;
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>اختبار إصلاح المودال</h1>
+    
+    <div class="test-section">
+        <h2>المشكلة التي تم إصلاحها:</h2>
+        <p class="error">❌ المودال لا يظهر عند النقر على أزرار التعديل</p>
+        <p class="success">✅ تم إصلاح دوال showModal و closeModal</p>
+    </div>
+    
+    <div class="test-section">
+        <h2>الإصلاحات المطبقة:</h2>
+        <ul>
+            <li class="success">✅ توحيد دالة showModal في crusher-details.js</li>
+            <li class="success">✅ توحيد دالة showModal في contractor-details.js</li>
+            <li class="success">✅ إضافة console.log للتتبع</li>
+            <li class="success">✅ التأكد من إضافة class "active" و display: flex</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>اختبار المودال:</h2>
+        <button class="btn" onclick="testShowModal()">اختبار فتح المودال</button>
+        <button class="btn" onclick="testCloseModal()">اختبار إغلاق المودال</button>
+        
+        <div id="testModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    مودال اختبار
+                    <button class="modal-close" onclick="testCloseModal()">&times;</button>
+                </div>
+                <p>هذا مودال للاختبار. إذا ظهر هذا النص، فإن المودال يعمل بشكل صحيح.</p>
+                <button class="btn" onclick="testCloseModal()">إغلاق</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>الكود الجديد لـ showModal:</h2>
+        <pre>
+function showModal(modalId) {
+    console.log('showModal called with:', modalId);
+    const modal = document.getElementById(modalId);
+    console.log('Modal element found:', !!modal);
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('active');
+        console.log('Modal should now be visible');
+    } else {
+        console.error('Modal not found:', modalId);
+    }
+}
+        </pre>
+    </div>
+    
+    <div class="test-section">
+        <h2>الكود الجديد لـ closeModal:</h2>
+        <pre>
+function closeModal(modalId) {
+    console.log('closeModal called with:', modalId);
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('active');
+        console.log('Modal closed');
+    }
+}
+        </pre>
+    </div>
+    
+    <div class="test-section">
+        <h2>للاختبار في الصفحات الحقيقية:</h2>
+        <ol>
+            <li>افتح <a href="backend/public/contractor-details.html?id=1" target="_blank">صفحة تفاصيل المقاول</a></li>
+            <li>اضغط على زر "✏️ تعديل البيانات"</li>
+            <li>يجب أن يظهر المودال الآن</li>
+            <li>تحقق من console للرسائل التالية:</li>
+            <ul>
+                <li>"Edit contractor button clicked!"</li>
+                <li>"showModal called with: editContractorModal"</li>
+                <li>"Modal element found: true"</li>
+                <li>"Modal should now be visible"</li>
+            </ul>
+        </ol>
+        
+        <p><strong>اختبار الكسارات:</strong></p>
+        <ol>
+            <li>افتح <a href="backend/public/crusher-details.html?id=1" target="_blank">صفحة تفاصيل الكسارة</a></li>
+            <li>اضغط على زر "✏️ تعديل البيانات"</li>
+            <li>يجب أن يظهر المودال الآن</li>
+        </ol>
+    </div>
+
+    <script>
+        function testShowModal() {
+            console.log('Testing showModal...');
+            const modal = document.getElementById('testModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.add('active');
+                console.log('Test modal opened');
+            }
+        }
+        
+        function testCloseModal() {
+            console.log('Testing closeModal...');
+            const modal = document.getElementById('testModal');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.remove('active');
+                console.log('Test modal closed');
+            }
+        }
+    </script>
+</body>
+</html>

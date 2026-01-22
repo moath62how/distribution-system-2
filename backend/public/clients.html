@@ -5,96 +5,73 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>العملاء</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../css/clients.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/modern-theme.css">
+    <link rel="stylesheet" href="css/sidebar.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 </head>
 
 <body>
-    <!-- Hamburger menu for mobile -->
-    <button class="hamburger" id="sidebarHamburger" aria-label="القائمة الجانبية">
-        <span></span>
-    </button>
-    <!-- Sidebar navigation -->
-    <nav class="sidebar" id="sidebar">
-        <div class="app-title">نظام التوزيع</div>
-        <ul>
-            <li><a href="dashboard.html">لوحة التحكم</a></li>
-            <li><a href="clients.html" class="active">العملاء</a></li>
-            <li><a href="crushers.html">الكسارات</a></li>
-            <li><a href="contractors.html">مقاولين العجل</a></li>
-            <li><a href="new-entry.html">تسليم جديد</a></li>
-        </ul>
-        <div class="sidenav-spacer"></div>
-    </nav>
-    <div class="clients-container">
-        <div class="clients-header">
-            <div class="clients-title">العملاء</div>
-            <button class="add-client-btn" id="addClientBtn">+ إضافة عميل</button>
+    <div id="sidebar-placeholder"></div>
+    
+    <div class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">إدارة العملاء</h1>
+            <button class="btn btn-primary" id="addClientBtn">
+                <span>➕</span> إضافة عميل جديد
+            </button>
         </div>
-        <div id="clientsContainer"></div>
+        
+        <div class="content-section">
+            <div class="search-controls">
+                <div class="search-box">
+                    <input type="text" id="clientSearch" class="form-input" placeholder="ابحث عن عميل...">
+                    <button id="searchBtn" class="btn btn-secondary">🔍 بحث</button>
+                </div>
+            </div>
+            
+            <div id="clientsContainer" class="clients-grid"></div>
+            <div id="paginationContainer"></div>
+        </div>
     </div>
+
+    <!-- Add Client Modal -->
+    <div id="addClientModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>إضافة عميل جديد</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="addClientForm">
+                <div class="form-group">
+                    <label for="clientName">اسم العميل *</label>
+                    <input type="text" id="clientName" name="name" required autocomplete="name">
+                </div>
+                
+                <div class="form-group">
+                    <label for="clientPhone">رقم الهاتف</label>
+                    <input type="tel" id="clientPhone" name="phone" placeholder="اختياري" autocomplete="tel">
+                </div>
+                
+                <div class="form-group">
+                    <label for="openingBalance">الرصيد الافتتاحي (جنيه)</label>
+                    <input type="text" id="openingBalance" name="opening_balance" placeholder="0.00" autocomplete="off">
+                    <small class="form-help">موجب = العميل يدين لنا، سالب = نحن ندين للعميل</small>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">إضافة العميل</button>
+                </div>
+                <div id="addClientMessage"></div>
+            </form>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script>
-        // Hamburger menu behavior
-        const sidebar = document.getElementById('sidebar');
-        const hamburger = document.getElementById('sidebarHamburger');
-        hamburger.addEventListener('click', function () {
-            sidebar.classList.toggle('open');
-        });
-        document.body.addEventListener('click', function (e) {
-            if (window.innerWidth <= 700 && sidebar.classList.contains('open')) {
-                if (!sidebar.contains(e.target) && e.target !== hamburger) {
-                    sidebar.classList.remove('open');
-                }
-            }
-        });
-        window.addEventListener('resize', function () {
-            if (window.innerWidth > 700 && sidebar.classList.contains('open')) {
-                sidebar.classList.remove('open');
-            }
-        });
-
-        // زر إضافة عميل - استخدام SweetAlert2 بدلاً من prompt/alert
-        document.getElementById('addClientBtn').addEventListener('click', async function () {
-            const { value: name } = await Swal.fire({
-                title: 'اسم العميل',
-                input: 'text',
-                inputPlaceholder: 'اسم العميل؟',
-                showCancelButton: true
-            });
-            if (!name) return;
-
-            const { value: phone } = await Swal.fire({
-                title: 'رقم الهاتف (اختياري)',
-                input: 'text',
-                inputPlaceholder: 'رقم الهاتف',
-                showCancelButton: true
-            });
-
-            const { value: opening } = await Swal.fire({
-                title: 'رصيد افتتاحي (اختياري)',
-                input: 'number',
-                inputPlaceholder: '0',
-                inputValue: '0',
-                showCancelButton: true
-            });
-
-            try {
-                await fetch('http://localhost:5000/api/clients', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, phone: phone || '', opening_balance: parseFloat(opening) || 0 })
-                });
-                await Swal.fire({ icon: 'success', title: 'نجح', text: 'تم إضافة العميل' });
-                window.location.reload();
-            } catch (err) {
-                console.error(err);
-                Swal.fire({ icon: 'error', title: 'خطأ', text: 'تعذر إضافة العميل' });
-            }
-        });
-    </script>
-    <script src="../js/clients.js"></script>
+    <script src="js/csp-fix.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/clients.js"></script>
 </body>
 
 </html>

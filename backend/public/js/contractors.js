@@ -12,150 +12,216 @@ const API_BASE = (function () {
 // --- Helpers ---
 
 function formatCurrency(amount) {
-    return Number(amount).toLocaleString('ar-EG', {
+    return Number(amount || 0).toLocaleString('ar-EG', {
         style: 'currency',
         currency: 'EGP',
-        minimumFractionDigits: 2
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
     });
 }
 
 /**
- * Creates a single contractor card DOM node
+ * Creates a single contractor card DOM node using unified CSS classes
  * @param {object} contractor - object (id, name, balance, ...future fields)
  * @returns {HTMLElement}
  */
 function createContractorCard(contractor) {
-    // Main card container
     const card = document.createElement('div');
     card.className = 'contractor-card';
 
-    // Contractor name
-    const nameDiv = document.createElement('div');
-    nameDiv.className = 'contractor-card-name';
-    nameDiv.textContent = contractor.name || "—";
+    // Header with name and actions
+    const header = document.createElement('div');
+    header.className = 'contractor-header';
+    
+    const name = document.createElement('h3');
+    name.className = 'contractor-name';
+    name.textContent = contractor.name || "—";
+    
+    const actions = document.createElement('div');
+    actions.className = 'contractor-actions';
+    
+    const detailsBtn = document.createElement('button');
+    detailsBtn.className = 'btn btn-sm btn-primary';
+    detailsBtn.innerHTML = '📊 التفاصيل';
+    detailsBtn.onclick = () => window.location.href = `contractor-details.html?id=${contractor.id}`;
+    
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'btn btn-sm btn-danger';
+    deleteBtn.innerHTML = '🗑️ حذف';
+    deleteBtn.onclick = () => deleteContractor(contractor.id, contractor.name);
+    
+    actions.appendChild(detailsBtn);
+    actions.appendChild(deleteBtn);
+    header.appendChild(name);
+    header.appendChild(actions);
+    card.appendChild(header);
 
-    // Balance
-    const balanceDiv = document.createElement('div');
-    balanceDiv.className = 'contractor-card-balance';
-    let bal = typeof contractor.balance === 'number' ? contractor.balance : 0;
-    balanceDiv.textContent = formatCurrency(bal);
-    if (bal > 0) {
-        balanceDiv.classList.add('positive-balance');
-    } else if (bal < 0) {
-        balanceDiv.classList.add('negative-balance');
+    // Financial summary section
+    const financialSection = document.createElement('div');
+    financialSection.className = 'contractor-financial';
+    
+    const balanceItem = document.createElement('div');
+    balanceItem.className = 'financial-item';
+    
+    const balanceLabel = document.createElement('span');
+    balanceLabel.className = 'financial-label';
+    balanceLabel.textContent = 'الرصيد الحالي:';
+    
+    const balanceValue = document.createElement('span');
+    balanceValue.className = 'financial-value contractor-balance';
+    const balance = contractor.balance || 0;
+    balanceValue.textContent = formatCurrency(Math.abs(balance));
+    
+    if (balance > 0) {
+        balanceValue.classList.add('positive');
+        balanceItem.appendChild(balanceLabel);
+        balanceItem.appendChild(document.createTextNode(' '));
+        balanceItem.appendChild(balanceValue);
+        balanceItem.appendChild(document.createTextNode(' (مدين لنا)'));
+    } else if (balance < 0) {
+        balanceValue.classList.add('negative');
+        balanceItem.appendChild(balanceLabel);
+        balanceItem.appendChild(document.createTextNode(' '));
+        balanceItem.appendChild(balanceValue);
+        balanceItem.appendChild(document.createTextNode(' (دائن لدينا)'));
     } else {
-        balanceDiv.classList.add('zero-balance');
+        balanceValue.classList.add('text-muted');
+        balanceItem.appendChild(balanceLabel);
+        balanceItem.appendChild(document.createTextNode(' '));
+        balanceItem.appendChild(balanceValue);
+        balanceItem.appendChild(document.createTextNode(' (متوازن)'));
     }
+    
+    financialSection.appendChild(balanceItem);
+    card.appendChild(financialSection);
 
-    // Open Account button (فتح الحساب)
-    const openBtn = document.createElement('button');
-    openBtn.className = 'contractor-card-open-btn';
-    openBtn.textContent = "فتح الحساب";
-    openBtn.onclick = function () {
-        // Navigate to contractor-details.html?id=XYZ
-        window.location.href = `contractor-details.html?id=${encodeURIComponent(contractor.id)}`;
-    };
-
-    // Structure
-    card.appendChild(nameDiv);
-    card.appendChild(balanceDiv);
-    card.appendChild(openBtn);
-
+    // Stats section (placeholder for future stats)
+    const stats = document.createElement('div');
+    stats.className = 'contractor-stats';
+    
+    // Add some basic stats if available
+    if (contractor.totalTrips !== undefined || contractor.totalPayments !== undefined) {
+        const statsItems = [
+            { label: 'إجمالي التسليمات', value: formatCurrency(contractor.totalTrips || 0) },
+            { label: 'إجمالي المدفوعات', value: formatCurrency(contractor.totalPayments || 0) }
+        ];
+        
+        statsItems.forEach(stat => {
+            const statItem = document.createElement('div');
+            statItem.className = 'stat-item';
+            
+            const statLabel = document.createElement('span');
+            statLabel.className = 'stat-label';
+            statLabel.textContent = stat.label + ':';
+            
+            const statValue = document.createElement('span');
+            statValue.className = 'stat-value';
+            statValue.textContent = stat.value;
+            
+            statItem.appendChild(statLabel);
+            statItem.appendChild(statValue);
+            stats.appendChild(statItem);
+        });
+    }
+    
+    card.appendChild(stats);
     return card;
 }
 
 function renderContractors(contractors) {
     const container = document.getElementById('contractorsContainer');
     if (!container) return;
-    container.innerHTML = ''; // Clear before render
 
-    // Cards grid container
-    const grid = document.createElement('div');
-    grid.className = 'contractors-grid';
+    container.innerHTML = '';
+
+    if (!contractors || contractors.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">👷</div>
+                <div class="empty-text">لا توجد مقاولين مسجلين</div>
+                <button class="btn btn-primary" onclick="document.getElementById('addContractorBtn').click()">
+                    إضافة مقاول جديد
+                </button>
+            </div>
+        `;
+        return;
+    }
 
     contractors.forEach(contractor => {
-        grid.appendChild(createContractorCard(contractor));
+        container.appendChild(createContractorCard(contractor));
     });
-
-    container.appendChild(grid);
 }
-
-// --- Inject minimal responsive card CSS ---
-(function injectContractorCardStyles() {
-    if (document.getElementById('contractor-cards-style')) return;
-
-    const style = document.createElement('style');
-    style.id = 'contractor-cards-style';
-    style.textContent = `
-.contractors-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(235px, 1fr));
-    gap: 18px;
-    margin-top: 18px;
-    margin-bottom: 22px;
-    align-items: stretch;
-}
-.contractor-card {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    background: #f6fbff;
-    border: 1.7px solid #d5e7fc;
-    border-radius: 13px;
-    box-shadow: 0 6px 17px #2d53881c;
-    padding: 22px 15px 20px 15px;
-    min-height: 156px;
-    transition: box-shadow 0.15s, border 0.15s;
-}
-.contractor-card:hover {
-    box-shadow: 0 9px 24px #28527a29;
-    border-color: #bde5ff;
-}
-.contractor-card-name {
-    font-size: 1.22rem;
-    font-weight: bold;
-    color: #284b71;
-    margin-bottom: 13px;
-    word-break: break-word;
-}
-.contractor-card-balance {
-    font-size: 1.04rem;
-    margin-bottom: 22px;
-    font-family: 'Cairo', Arial, sans-serif;
-}
-.positive-balance { color: #388e3c; font-weight: 500; }
-.negative-balance { color: #c0392b; font-weight: 500; }
-.zero-balance { color: #7c7c7c; }
-.contractor-card-open-btn {
-    margin-top: auto;
-    padding: 8px 22px;
-    border-radius: 6px;
-    background: #247ae0;
-    color: #fff;
-    border: none;
-    font-size: 1rem;
-    font-family: 'Cairo', Arial, sans-serif;
-    cursor: pointer;
-    box-shadow: 0 1px 5px #28527a13;
-    transition: background 0.14s, box-shadow 0.14s;
-}
-.contractor-card-open-btn:hover, .contractor-card-open-btn:focus {
-    background: #174886;
-    box-shadow: 0 3px 14px #28527a22;
-}
-@media (max-width: 680px) {
-    .contractor-card { padding: 13px 8px 11px 8px; }
-    .contractors-grid { gap: 11px; }
-    #contractorsContainer { padding: 0 4px; }
-}
-    `;
-    document.head.appendChild(style);
-})();
 
 async function fetchContractors() {
     const resp = await fetch(`${API_BASE}/contractors`);
     if (!resp.ok) throw new Error('تعذر تحميل المقاولين');
     return resp.json();
+}
+
+// Delete contractor function
+async function deleteContractor(contractorId, contractorName) {
+    try {
+        // Show confirmation dialog
+        const result = await Swal.fire({
+            title: 'تأكيد الحذف',
+            text: `هل أنت متأكد من حذف المقاول "${contractorName}"؟`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'نعم، احذف',
+            cancelButtonText: 'إلغاء',
+            reverseButtons: true
+        });
+
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        // Show loading
+        Swal.fire({
+            title: 'جاري الحذف...',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        const response = await fetch(`${API_BASE}/contractors/${contractorId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'فشل في حذف المقاول');
+        }
+
+        // Show success message
+        await Swal.fire({
+            title: 'تم الحذف بنجاح',
+            text: data.message,
+            icon: 'success',
+            confirmButtonText: 'موافق'
+        });
+
+        // Reload contractors list
+        location.reload();
+
+    } catch (error) {
+        console.error('Delete contractor error:', error);
+        
+        // Show error message
+        Swal.fire({
+            title: 'خطأ في الحذف',
+            text: error.message,
+            icon: 'error',
+            confirmButtonText: 'موافق'
+        });
+    }
 }
 
 // --- Initialization on DOMContentLoaded ---
@@ -164,11 +230,20 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(renderContractors)
         .catch(err => {
             console.error(err);
-            const container = document.getElementById('contractorsContainer') || document.body;
-            const msg = document.createElement('div');
-            msg.textContent = 'تعذر تحميل مقاولين العجل';
-            msg.style.color = '#c0392b';
-            container.appendChild(msg);
+            const container = document.getElementById('contractorsContainer');
+            if (container) {
+                container.innerHTML = `
+                    <div class="error-state">
+                        <div class="error-icon">❌</div>
+                        <div class="error-text">خطأ في تحميل بيانات المقاولين</div>
+                        <div class="error-details">${err.message}</div>
+                        <button class="btn btn-primary" onclick="location.reload()">إعادة المحاولة</button>
+                    </div>
+                `;
+            }
         });
 });
+
+// Make functions available globally
+window.deleteContractor = deleteContractor;
 

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Detail Pages</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .result { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background: #d4edda; }
+        .error { background: #f8d7da; }
+        button { margin: 5px; padding: 10px 15px; cursor: pointer; }
+        .links { margin: 10px 0; }
+        .links a { display: inline-block; margin: 5px; padding: 8px 12px; background: #007bff; color: white; text-decoration: none; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>Test Detail Pages</h1>
+    
+    <div class="test-section">
+        <h2>API Tests</h2>
+        <button onclick="testClientDetails()">Test Client Details API</button>
+        <button onclick="testContractorDetails()">Test Contractor Details API</button>
+        <button onclick="testCrusherDetails()">Test Crusher Details API</button>
+        <div id="apiResults"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Direct Links to Detail Pages</h2>
+        <div class="links">
+            <a href="http://localhost:5000/clients-details.html?id=1" target="_blank">Client Details (ID: 1)</a>
+            <a href="http://localhost:5000/contractor-details.html?id=1" target="_blank">Contractor Details (ID: 1)</a>
+            <a href="http://localhost:5000/crusher-details.html?id=1" target="_blank">Crusher Details (ID: 1)</a>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Main Pages</h2>
+        <div class="links">
+            <a href="http://localhost:5000/index.html" target="_blank">Homepage</a>
+            <a href="http://localhost:5000/clients.html" target="_blank">Clients</a>
+            <a href="http://localhost:5000/contractors.html" target="_blank">Contractors</a>
+            <a href="http://localhost:5000/crushers.html" target="_blank">Crushers</a>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        
+        async function testClientDetails() {
+            try {
+                const response = await fetch(`${API_BASE}/clients/1`);
+                const data = await response.json();
+                showResult('Client Details API', {
+                    client: data.client?.name,
+                    deliveries: data.deliveries?.length || 0,
+                    payments: data.payments?.length || 0,
+                    adjustments: data.adjustments?.length || 0,
+                    balance: data.totals?.balance
+                }, true);
+            } catch (error) {
+                showResult('Client Details API', error.message, false);
+            }
+        }
+        
+        async function testContractorDetails() {
+            try {
+                const response = await fetch(`${API_BASE}/contractors/1`);
+                const data = await response.json();
+                showResult('Contractor Details API', {
+                    contractor: data.contractor?.name,
+                    deliveries: data.deliveries?.length || 0,
+                    payments: data.payments?.length || 0,
+                    adjustments: data.adjustments?.length || 0,
+                    balance: data.totals?.balance
+                }, true);
+            } catch (error) {
+                showResult('Contractor Details API', error.message, false);
+            }
+        }
+        
+        async function testCrusherDetails() {
+            try {
+                const response = await fetch(`${API_BASE}/crushers/1`);
+                const data = await response.json();
+                showResult('Crusher Details API', {
+                    crusher: data.crusher?.name,
+                    deliveries: data.deliveries?.length || 0,
+                    payments: data.payments?.length || 0,
+                    adjustments: data.adjustments?.length || 0,
+                    totalNeeded: data.totals?.totalNeeded,
+                    totalPaid: data.totals?.totalPaid
+                }, true);
+            } catch (error) {
+                showResult('Crusher Details API', error.message, false);
+            }
+        }
+        
+        function showResult(title, data, success) {
+            const results = document.getElementById('apiResults');
+            const div = document.createElement('div');
+            div.className = `result ${success ? 'success' : 'error'}`;
+            div.innerHTML = `<h4>${title}</h4><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            results.appendChild(div);
+        }
+        
+        // Auto-run tests on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                testClientDetails();
+                setTimeout(() => testContractorDetails(), 500);
+                setTimeout(() => testCrusherDetails(), 1000);
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

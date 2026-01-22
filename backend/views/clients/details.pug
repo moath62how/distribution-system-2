@@ -42,6 +42,17 @@ block content
               )= balStr + balSuffix
 
     //- Material Totals Cards
+    if materialTotals && materialTotals.length > 0
+      .mb-6
+        h2.text-xl.font-bold.text-blue-800.mb-4 إجماليات المواد
+        .grid.grid-cols-1.md_grid-cols-2.lg_grid-cols-3.gap-4
+          each material in materialTotals
+            .bg-white.rounded-xl.shadow-md.p-4.border.border-gray-200
+              .text-lg.font-bold.text-blue-900.mb-2= material.material
+              .text-sm.text-gray-600.mb-1 الكمية الإجمالية
+              .text-xl.font-semibold.text-green-600.mb-2= material.totalQty.toLocaleString('ar-EG', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' طن'
+              .text-sm.text-gray-600.mb-1 القيمة الإجمالية
+              .text-lg.font-semibold.text-blue-600= material.totalValue.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP', minimumFractionDigits: 2 })
     
     //- Deliveries Section
     .bg-white.rounded-xl.shadow-md.p-6.mb-6

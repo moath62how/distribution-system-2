@@ -10,8 +10,10 @@ const API_BASE = (function () {
 })();
 
 // State
-let allDeliveries = [], allPayments = [], allAdjustments = [];
-let deliveriesSort = 'date-desc', paymentsSort = 'date-desc', adjustmentsSort = 'date-desc';
+let clientData = null;
+let allDeliveries = [];
+let allPayments = [];
+let allAdjustments = [];
 
 // Helpers
 function getClientIdFromURL() {
@@ -19,1031 +21,1083 @@ function getClientIdFromURL() {
 }
 
 function formatCurrency(amount) {
-    return Number(amount).toLocaleString('ar-EG', {
+    return Number(amount || 0).toLocaleString('ar-EG', {
         style: 'currency',
         currency: 'EGP',
-        minimumFractionDigits: 2
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
     });
 }
 
 function formatDate(dateStr) {
-    if (!dateStr) return "";
-    const d = new Date(dateStr);
-    return isNaN(d) ? dateStr : d.toLocaleDateString('ar-EG');
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('ar-EG', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
 }
 
-// Generic table builder
-function buildTable(data, fields) {
-    const table = document.createElement('table');
-    table.className = "client-detail-table";
-    const thead = document.createElement('thead');
-    const headRow = document.createElement('tr');
-    fields.forEach(f => {
-        const th = document.createElement('th');
-        th.textContent = f.label;
-        headRow.appendChild(th);
+function formatQuantity(amount) {
+    return Number(amount || 0).toLocaleString('ar-EG', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
     });
-    thead.appendChild(headRow);
-    table.appendChild(thead);
-
-    const tbody = document.createElement('tbody');
-    data.forEach(row => {
-        const tr = document.createElement('tr');
-        fields.forEach(f => {
-            const td = document.createElement('td');
-            const value = row[f.key];
-            if (f.key === "total_value" || f.key === "amount") {
-                td.textContent = formatCurrency(value);
-                if (f.key === "amount") {
-                    td.style.fontWeight = 'bold';
-                    td.style.color = value < 0 ? '#c0392b' : '#388e3c';
-                }
-            } else if (["price_per_meter"].includes(f.key)) {
-                td.textContent = formatCurrency(value);
-            } else if (["quantity"].includes(f.key)) {
-                td.textContent = Number(value || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            } else if (["created_at", "paid_at"].includes(f.key)) {
-                td.textContent = formatDate(value);
-            } else {
-                td.textContent = value !== undefined && value !== null ? value : "";
-            }
-            tr.appendChild(td);
-        });
-        tbody.appendChild(tr);
-    });
-    table.appendChild(tbody);
-    return table;
 }
 
-// Deliveries
-function renderDeliveriesTable(deliveries, showControls = true) {
-    const container = document.getElementById('deliveriesTableDiv');
-    if (!container) return;
-
-    const fields = [
-        { label: "التاريخ", key: "created_at" },
-        { label: "نوع الحمولة", key: "material" },
-        { label: "رقم البون", key: "voucher" },
-        { label: "الكمية", key: "quantity" },
-        { label: "سعر المتر", key: "price_per_meter" },
-        { label: "الإجمالي", key: "total_value" },
-        { label: "الكسارة", key: "crusher_name" },
-        { label: "مقاول النقل", key: "contractor_name" }
-    ];
-
-    if (!showControls) {
-        container.innerHTML = '';
-        container.appendChild(buildTable(deliveries, fields));
-        return;
-    }
-
-    container.innerHTML = '';
-    const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'table-controls';
-
-    const searchInput = document.createElement('input');
-    searchInput.type = 'text';
-    searchInput.placeholder = 'ابحث في التسليمات...';
-    searchInput.className = 'table-search';
-
-    const searchBtn = document.createElement('button');
-    searchBtn.textContent = '🔍 بحث';
-    searchBtn.className = 'search-btn';
-    searchBtn.addEventListener('click', () => filterAndRenderDeliveries(searchInput.value));
-    searchInput.addEventListener('keyup', (e) => {
-        if (e.key === 'Enter') filterAndRenderDeliveries(searchInput.value);
-    });
-
-    const sortSelect = document.createElement('select');
-    sortSelect.className = 'table-sort';
-    sortSelect.innerHTML = `<option value="date-desc">الأحدث أولاً</option>
-                            <option value="date-asc">الأقدم أولاً</option>
-                            <option value="value-desc">الأعلى قيمة أولاً</option>
-                            <option value="value-asc">الأقل قيمة أولاً</option>`;
-    sortSelect.value = deliveriesSort;
-    sortSelect.addEventListener('change', (e) => {
-        deliveriesSort = e.target.value;
-        filterAndRenderDeliveries(searchInput.value);
-    });
-
-    controlsDiv.appendChild(searchInput);
-    controlsDiv.appendChild(searchBtn);
-    controlsDiv.appendChild(sortSelect);
-    container.appendChild(controlsDiv);
-    container.appendChild(buildTable(deliveries, fields));
-}
-
-
-function filterAndRenderDeliveries(searchTerm = '') {
-    let filtered = allDeliveries.filter(d => {
-        if (!searchTerm) return true;
-        const term = searchTerm.toLowerCase();
-        return (d.material || '').toLowerCase().includes(term) ||
-            (d.voucher || '').toLowerCase().includes(term) ||
-            (d.crusher_name || '').toLowerCase().includes(term) ||
-            (d.contractor_name || '').toLowerCase().includes(term);
-    });
-
-    filtered = filtered.sort((a, b) => {
-        switch (deliveriesSort) {
-            case 'date-asc': return new Date(a.created_at) - new Date(b.created_at);
-            case 'date-desc': return new Date(b.created_at) - new Date(a.created_at);
-            case 'value-asc': return (a.total_value || 0) - (b.total_value || 0);
-            case 'value-desc': return (b.total_value || 0) - (a.total_value || 0);
-            default: return 0;
-        }
-    });
-
-    const container = document.getElementById('deliveriesTableDiv');
-    if (!container) return;
-
-    const fields = [
-        { label: "التاريخ", key: "created_at" },
-        { label: "نوع الحمولة", key: "material" },
-        { label: "رقم البون", key: "voucher" },
-        { label: "الكمية", key: "quantity" },
-        { label: "سعر المتر", key: "price_per_meter" },
-        { label: "الإجمالي", key: "total_value" },
-        { label: "الكسارة", key: "crusher_name" },
-        { label: "مقاول النقل", key: "contractor_name" }
-    ];
-
-    container.innerHTML = '';
-    const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'table-controls';
-
-    const searchInput = document.createElement('input');
-    searchInput.type = 'text';
-    searchInput.placeholder = 'ابحث في التسليمات...';
-    searchInput.className = 'table-search';
-    searchInput.value = searchTerm;
-
-    const searchBtn = document.createElement('button');
-    searchBtn.textContent = '🔍 بحث';
-    searchBtn.className = 'search-btn';
-    searchBtn.addEventListener('click', () => filterAndRenderDeliveries(searchInput.value));
-    searchInput.addEventListener('keyup', (e) => {
-        if (e.key === 'Enter') filterAndRenderDeliveries(searchInput.value);
-    });
-
-    const sortSelect = document.createElement('select');
-    sortSelect.className = 'table-sort';
-    sortSelect.innerHTML = `<option value="date-desc">الأحدث أولاً</option>
-                            <option value="date-asc">الأقدم أولاً</option>
-                            <option value="value-desc">الأعلى قيمة أولاً</option>
-                            <option value="value-asc">الأقل قيمة أولاً</option>`;
-    sortSelect.value = deliveriesSort;
-    sortSelect.addEventListener('change', (e) => {
-        deliveriesSort = e.target.value;
-        filterAndRenderDeliveries(searchInput.value);
-    });
-
-    controlsDiv.appendChild(searchInput);
-    controlsDiv.appendChild(searchBtn);
-    controlsDiv.appendChild(sortSelect);
-    container.appendChild(controlsDiv);
-    container.appendChild(buildTable(filtered, fields));
-}
-
-// Payments
-function renderPaymentsTable(payments, showControls = true) {
-    const container = document.getElementById('paymentsTableDiv');
-    if (!container) return;
-
-    const fields = [
-        { label: "التاريخ", key: "paid_at" },
-        { label: "المبلغ", key: "amount" },
-        { label: "طريقة الدفع", key: "method" },
-        { label: "ملاحظات", key: "note" }
-    ];
-
-    if (!showControls) {
-        container.innerHTML = '';
-        container.appendChild(buildTable(payments, fields));
-        return;
-    }
-
-    container.innerHTML = '';
-    const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'table-controls';
-
-    const addBtn = document.createElement('button');
-    addBtn.textContent = '+ إضافة دفعة جديدة';
-    addBtn.className = 'add-btn';
-    addBtn.addEventListener('click', showPaymentForm);
-
-    const searchInput = document.createElement('input');
-    searchInput.type = 'text';
-    searchInput.placeholder = 'ابحث في المدفوعات...';
-    searchInput.className = 'table-search';
-
-    const searchBtn = document.createElement('button');
-    searchBtn.textContent = '🔍 بحث';
-    searchBtn.className = 'search-btn';
-    searchBtn.addEventListener('click', () => filterAndRenderPayments(searchInput.value));
-    searchInput.addEventListener('keyup', (e) => {
-        if (e.key === 'Enter') filterAndRenderPayments(searchInput.value);
-    });
-
-    const sortSelect = document.createElement('select');
-    sortSelect.className = 'table-sort';
-    sortSelect.innerHTML = `<option value="date-desc">الأحدث أولاً</option>
-                            <option value="date-asc">الأقدم أولاً</option>
-                            <option value="amount-desc">الأعلى مبلغ أولاً</option>
-                            <option value="amount-asc">الأقل مبلغ أولاً</option>`;
-    sortSelect.value = paymentsSort;
-    sortSelect.addEventListener('change', (e) => {
-        paymentsSort = e.target.value;
-        filterAndRenderPayments(searchInput.value);
-    });
-
-    controlsDiv.appendChild(addBtn);
-    controlsDiv.appendChild(searchInput);
-    controlsDiv.appendChild(searchBtn);
-    controlsDiv.appendChild(sortSelect);
-    container.appendChild(controlsDiv);
-    container.appendChild(buildTable(payments, fields));
-}
-
-function filterAndRenderPayments(searchTerm = '') {
-    let filtered = allPayments.filter(p => {
-        if (!searchTerm) return true;
-        const term = searchTerm.toLowerCase();
-        return (p.note || '').toLowerCase().includes(term) ||
-            (p.method || '').toLowerCase().includes(term);
-    });
-
-    filtered = filtered.sort((a, b) => {
-        switch (paymentsSort) {
-            case 'date-asc': return new Date(a.paid_at) - new Date(b.paid_at);
-            case 'date-desc': return new Date(b.paid_at) - new Date(a.paid_at);
-            case 'amount-asc': return (a.amount || 0) - (b.amount || 0);
-            case 'amount-desc': return (b.amount || 0) - (a.amount || 0);
-            default: return 0;
-        }
-    });
-
-    const container = document.getElementById('paymentsTableDiv');
-    if (!container) return;
-
-    const fields = [
-        { label: "التاريخ", key: "paid_at" },
-        { label: "المبلغ", key: "amount" },
-        { label: "طريقة الدفع", key: "method" },
-        { label: "ملاحظات", key: "note" }
-    ];
-
-    container.innerHTML = '';
-    const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'table-controls';
-
-    const addBtn = document.createElement('button');
-    addBtn.textContent = '+ إضافة دفعة جديدة';
-    addBtn.className = 'add-btn';
-    addBtn.addEventListener('click', showPaymentForm);
-
-    const searchInput = document.createElement('input');
-    searchInput.type = 'text';
-    searchInput.placeholder = 'ابحث في المدفوعات...';
-    searchInput.className = 'table-search';
-    searchInput.value = searchTerm;
-
-    const searchBtn = document.createElement('button');
-    searchBtn.textContent = '🔍 بحث';
-    searchBtn.className = 'search-btn';
-    searchBtn.addEventListener('click', () => filterAndRenderPayments(searchInput.value));
-    searchInput.addEventListener('keyup', (e) => {
-        if (e.key === 'Enter') filterAndRenderPayments(searchInput.value);
-    });
-
-    const sortSelect = document.createElement('select');
-    sortSelect.className = 'table-sort';
-    sortSelect.innerHTML = `<option value="date-desc">الأحدث أولاً</option>
-                            <option value="date-asc">الأقدم أولاً</option>
-                            <option value="amount-desc">الأعلى مبلغ أولاً</option>
-                            <option value="amount-asc">الأقل مبلغ أولاً</option>`;
-    sortSelect.value = paymentsSort;
-    sortSelect.addEventListener('change', (e) => {
-        paymentsSort = e.target.value;
-        filterAndRenderPayments(searchInput.value);
-    });
-
-    controlsDiv.appendChild(addBtn);
-    controlsDiv.appendChild(searchInput);
-    controlsDiv.appendChild(searchBtn);
-    controlsDiv.appendChild(sortSelect);
-    container.appendChild(controlsDiv);
-    container.appendChild(buildTable(filtered, fields));
-}
-
-// Financial Summary
-function renderFinancialSummary(container, totals) {
-    const totalDeliveries = totals?.totalDeliveries ?? 0;
-    const totalPayments = totals?.totalPayments ?? 0;
-    const totalAdjustments = totals?.totalAdjustments ?? 0;
-    const openingBalance = totals?.openingBalance ?? 0;
-    const finalBalance = totals?.balance ?? (totalDeliveries - totalPayments + totalAdjustments + openingBalance);
-
+// Render Functions
+function renderSummary(totals) {
+    const container = document.getElementById('summaryGrid');
+    const balance = totals.balance || 0;
+    const openingBalance = totals.openingBalance || 0;
+    
+    // Balance logic: Positive = they owe us (GREEN), Negative = we owe them (RED)
+    const balanceClass = balance > 0 ? 'text-success' : balance < 0 ? 'text-danger' : '';
+    const balanceLabel = balance > 0 ? '(عليه )' : balance < 0 ? '(له )' : '';
+    
+    // Opening balance logic: Positive = they owe us (عليه), Negative = we owe them (له)
+    const openingClass = openingBalance > 0 ? 'text-success' : openingBalance < 0 ? 'text-danger' : '';
+    const openingLabel = openingBalance > 0 ? '(عليه)' : openingBalance < 0 ? '(له)' : '';
+    
     container.innerHTML = `
-    <div class="client-financial-summary">
-        <table><tbody>
-            <tr><td>الرصيد الافتتاحي</td><td>${formatCurrency(openingBalance)}</td></tr>
-            <tr><td>إجمالي التسليمات</td><td>${formatCurrency(totalDeliveries)}</td></tr>
-            <tr><td>إجمالي المدفوعات</td><td>${formatCurrency(totalPayments)}</td></tr>
-            <tr><td>إجمالي التعديلات</td><td>${formatCurrency(totalAdjustments)}</td></tr>
-            <tr class="balance-row"><td><strong>الرصيد النهائي</strong></td><td><strong>${formatCurrency(finalBalance)}</strong></td></tr>
-        </tbody></table>
-    </div>`;
+        <div class="summary-item">
+            <div class="summary-value ${openingClass}">${formatCurrency(Math.abs(openingBalance))} ${openingLabel}</div>
+            <div class="summary-label">الرصيد الافتتاحي</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-value text-success">${formatCurrency(totals.totalDeliveries || 0)}</div>
+            <div class="summary-label">إجمالي التوريدات</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-value text-danger">${formatCurrency(totals.totalPayments || 0)}</div>
+            <div class="summary-label">إجمالي المدفوعات</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-value ${totals.totalAdjustments > 0 ? 'text-success' : totals.totalAdjustments < 0 ? 'text-danger' : ''}">${formatCurrency(Math.abs(totals.totalAdjustments || 0))} ${totals.totalAdjustments > 0 ? '(عليه)' : totals.totalAdjustments < 0 ? '(له)' : ''}</div>
+            <div class="summary-label">إجمالي التعديلات</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-value ${balanceClass}">${formatCurrency(Math.abs(balance))} ${balanceLabel}</div>
+            <div class="summary-label">الرصيد الصافي</div>
+        </div>
+    `;
 }
 
-// Material Cards
-function renderMaterialCards(container, materialTotals) {
+function renderMaterials(materialTotals) {
+    const container = document.getElementById('materialsContainer');
+    
     if (!materialTotals || materialTotals.length === 0) {
-        container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">لا توجد بيانات مواد</p>';
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📦</div>
+                <div>لا توجد بيانات مواد</div>
+            </div>
+        `;
         return;
     }
+
     container.innerHTML = '';
-    const grid = document.createElement('div');
-    grid.className = 'material-cards-grid';
-    materialTotals.forEach(m => {
+    materialTotals.forEach(material => {
         const card = document.createElement('div');
         card.className = 'material-card';
-        card.innerHTML = `<div class="material-card-title">${m.material}</div>
-            <div class="material-card-stat"><span>الكمية:</span><strong>${Number(m.totalQty || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2 })} م³</strong></div>
-            <div class="material-card-stat"><span>القيمة:</span><strong>${formatCurrency(m.totalValue)}</strong></div>`;
-        grid.appendChild(card);
+        card.innerHTML = `
+            <div class="material-title">${material.material}</div>
+            <div class="material-stat">
+                <span>الكمية:</span>
+                <strong>${formatQuantity(material.totalQty)} م³</strong>
+            </div>
+            <div class="material-stat">
+                <span>القيمة:</span>
+                <strong>${formatCurrency(material.totalValue)}</strong>
+            </div>
+        `;
+        container.appendChild(card);
     });
-    container.appendChild(grid);
 }
 
-// CSS Injection
-(function injectCss() {
-    const style = document.createElement('style');
-    style.innerHTML = `.material-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 20px 0; }
-    .material-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); transition: transform 0.2s, box-shadow 0.2s; }
-    .material-card:hover { transform: translateY(-4px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
-    .material-card-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 12px; border-bottom: 2px solid rgba(255,255,255,0.3); padding-bottom: 8px; }
-    .material-card-stat { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; font-size: 0.95rem; }
-    .material-card-stat span { opacity: 0.9; }
-    .material-card-stat strong { font-size: 1.05rem; text-align: right; }
-    .table-controls { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
-    .add-btn, .search-btn { padding: 10px 16px; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: 'Cairo', Arial, sans-serif; font-weight: 500; transition: background 0.2s; white-space: nowrap; }
-    .add-btn { background: #4CAF50; }
-    .add-btn:hover { background: #45a049; }
-    .search-btn { background: #2d6cdf; }
-    .search-btn:hover { background: #174886; }
-    .table-search { flex: 1; min-width: 200px; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-family: 'Cairo', Arial, sans-serif; font-size: 0.95rem; }
-    .table-search:focus { outline: none; border-color: #2d6cdf; box-shadow: 0 0 0 3px rgba(45, 108, 223, 0.1); }
-    .table-sort { padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-family: 'Cairo', Arial, sans-serif; background: white; cursor: pointer; }
-    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000; justify-content: center; align-items: center; }
-    .modal.active { display: flex; }
-    .modal-content { background: white; padding: 32px; border-radius: 10px; max-width: 500px; width: 90%; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3); }
-    .modal-header { font-size: 1.5rem; font-weight: bold; margin-bottom: 24px; color: #333; text-align: right; }
-    .form-group { margin-bottom: 20px; text-align: right; }
-    .form-group label { display: block; margin-bottom: 8px; font-weight: 500; color: #555; }
-    .form-group input, .form-group textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-family: 'Cairo', Arial, sans-serif; font-size: 0.95rem; box-sizing: border-box; }
-    .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #2d6cdf; box-shadow: 0 0 0 3px rgba(45, 108, 223, 0.1); }
-    .form-group textarea { resize: vertical; min-height: 80px; }
-    .form-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
-    .btn-submit, .btn-cancel { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; font-family: 'Cairo', Arial, sans-serif; font-weight: 500; transition: background 0.2s; }
-    .btn-submit { background: #2d6cdf; color: white; }
-    .btn-submit:hover { background: #174886; }
-    .btn-cancel { background: #e0e0e0; color: #333; }
-    .btn-cancel:hover { background: #d0d0d0; }
-    .form-message { padding: 12px; border-radius: 6px; margin-bottom: 16px; text-align: right; }
-    .form-message.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
-    .form-message.error { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
-    @media (max-width: 680px) { .table-controls { flex-direction: column; } .table-search { min-width: unset; } }`;
-    document.head.appendChild(style);
-})();
-
-// Adjustments
-function renderAdjustmentsTable(adjustments, showControls = true) {
-    const container = document.getElementById('adjustmentsTableDiv');
-    if (!container) return;
-
-    const fields = [
-        { label: 'التاريخ', key: 'created_at' },
-        { label: 'القيمة', key: 'amount' },
-        { label: 'السبب', key: 'reason' }
-    ];
-
-    if (!showControls) {
-        container.innerHTML = '';
-        container.appendChild(buildTable(adjustments, fields));
+function renderDeliveries(deliveries) {
+    const container = document.getElementById('deliveriesContainer');
+    
+    if (!deliveries || deliveries.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">🚚</div>
+                <div>لا توجد تسليمات مسجلة</div>
+            </div>
+        `;
         return;
     }
 
-    container.innerHTML = '';
-    const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'table-controls';
-
-    const addBtn = document.createElement('button');
-    addBtn.textContent = '+ إضافة تسوية جديدة';
-    addBtn.className = 'add-btn';
-    addBtn.addEventListener('click', showAdjustmentForm);
-
-    const searchInput = document.createElement('input');
-    searchInput.type = 'text';
-    searchInput.placeholder = 'ابحث في التسويات...';
-    searchInput.className = 'table-search';
-
-    const searchBtn = document.createElement('button');
-    searchBtn.textContent = '🔍 بحث';
-    searchBtn.className = 'search-btn';
-    searchBtn.addEventListener('click', () => filterAndRenderAdjustments(searchInput.value));
-    searchInput.addEventListener('keyup', (e) => {
-        if (e.key === 'Enter') filterAndRenderAdjustments(searchInput.value);
-    });
-
-    const sortSelect = document.createElement('select');
-    sortSelect.className = 'table-sort';
-    sortSelect.innerHTML = `<option value="date-desc">الأحدث أولاً</option>
-                            <option value="date-asc">الأقدم أولاً</option>
-                            <option value="amount-desc">الأعلى مبلغ أولاً</option>
-                            <option value="amount-asc">الأقل مبلغ أولاً</option>`;
-    sortSelect.value = adjustmentsSort;
-    sortSelect.addEventListener('change', (e) => {
-        adjustmentsSort = e.target.value;
-        filterAndRenderAdjustments(searchInput.value);
-    });
-
-    controlsDiv.appendChild(addBtn);
-    controlsDiv.appendChild(searchInput);
-    controlsDiv.appendChild(searchBtn);
-    controlsDiv.appendChild(sortSelect);
-    container.appendChild(controlsDiv);
-    container.appendChild(buildTable(adjustments, fields));
-}
-
-function filterAndRenderAdjustments(searchTerm = '') {
-    let filtered = allAdjustments.filter(a => {
-        if (!searchTerm) return true;
-        return (a.reason || '').toLowerCase().includes(searchTerm.toLowerCase());
-    });
-
-    filtered = filtered.sort((a, b) => {
-        switch (adjustmentsSort) {
-            case 'date-asc': return new Date(a.created_at) - new Date(b.created_at);
-            case 'date-desc': return new Date(b.created_at) - new Date(a.created_at);
-            case 'amount-asc': return (a.amount || 0) - (b.amount || 0);
-            case 'amount-desc': return (b.amount || 0) - (a.amount || 0);
-            default: return 0;
-        }
-    });
-
-    const container = document.getElementById('adjustmentsTableDiv');
-    if (!container) return;
-
-    const fields = [
-        { label: 'التاريخ', key: 'created_at' },
-        { label: 'القيمة', key: 'amount' },
-        { label: 'السبب', key: 'reason' }
-    ];
-
-    container.innerHTML = '';
-    const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'table-controls';
-
-    const addBtn = document.createElement('button');
-    addBtn.textContent = '+ إضافة تسوية جديدة';
-    addBtn.className = 'add-btn';
-    addBtn.addEventListener('click', showAdjustmentForm);
-
-    const searchInput = document.createElement('input');
-    searchInput.type = 'text';
-    searchInput.placeholder = 'ابحث في التسويات...';
-    searchInput.className = 'table-search';
-    searchInput.value = searchTerm;
-
-    const searchBtn = document.createElement('button');
-    searchBtn.textContent = '🔍 بحث';
-    searchBtn.className = 'search-btn';
-    searchBtn.addEventListener('click', () => filterAndRenderAdjustments(searchInput.value));
-    searchInput.addEventListener('keyup', (e) => {
-        if (e.key === 'Enter') filterAndRenderAdjustments(searchInput.value);
-    });
-
-    const sortSelect = document.createElement('select');
-    sortSelect.className = 'table-sort';
-    sortSelect.innerHTML = `<option value="date-desc">الأحدث أولاً</option>
-                            <option value="date-asc">الأقدم أولاً</option>
-                            <option value="amount-desc">الأعلى مبلغ أولاً</option>
-                            <option value="amount-asc">الأقل مبلغ أولاً</option>`;
-    sortSelect.value = adjustmentsSort;
-    sortSelect.addEventListener('change', (e) => {
-        adjustmentsSort = e.target.value;
-        filterAndRenderAdjustments(searchInput.value);
-    });
-
-    controlsDiv.appendChild(addBtn);
-    controlsDiv.appendChild(searchInput);
-    controlsDiv.appendChild(searchBtn);
-    controlsDiv.appendChild(sortSelect);
-    container.appendChild(controlsDiv);
-    container.appendChild(buildTable(filtered, fields));
-}
-
-// Modal Helpers
-function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) modal.classList.remove('active');
-}
-
-function showMessage(elementId, message, type) {
-    const msgDiv = document.getElementById(elementId);
-    if (msgDiv) {
-        msgDiv.textContent = message;
-        msgDiv.className = `form-message ${type}`;
-    }
-}
-
-// Payment Modal
-function createPaymentModal() {
-    const modal = document.createElement('div');
-    modal.id = 'paymentModal';
-    modal.className = 'modal';
-    modal.innerHTML = `<div class="modal-content">
-        <div class="modal-header">إضافة دفعة جديدة</div>
-        <div id="paymentMessage"></div>
-        <form id="paymentForm">
-            <div class="form-group">
-                <label for="paymentAmount">المبلغ *</label>
-                <input type="number" id="paymentAmount" required min="0" step="0.01">
-            </div>
-            <div class="form-group">
-                <label for="paymentDate">التاريخ</label>
-                <input type="date" id="paymentDate">
-            </div>
-            <div class="form-group">
-                <label for="paymentNote">ملاحظات</label>
-                <textarea id="paymentNote"></textarea>
-            </div>
-            <div class="form-actions">
-                <button type="button" class="btn-cancel" onclick="closeModal('paymentModal')">إلغاء</button>
-                <button type="submit" class="btn-submit">إضافة</button>
-            </div>
-        </form>
-    </div>`;
-
-    modal.querySelector('#paymentForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const clientId = getClientIdFromURL();
-        const amount = document.getElementById('paymentAmount').value;
-        const paid_at = document.getElementById('paymentDate').value;
-        const note = document.getElementById('paymentNote').value;
-
-        try {
-            const resp = await fetch(`${API_BASE}/clients/${clientId}/payments`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount, paid_at, note })
-            });
-            if (!resp.ok) throw new Error('فشل إضافة الدفعة');
-            showMessage('paymentMessage', 'تم إضافة الدفعة بنجاح', 'success');
-            setTimeout(() => { closeModal('paymentModal'); location.reload(); }, 1000);
-        } catch (err) {
-            showMessage('paymentMessage', err.message, 'error');
-        }
-    });
-
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal('paymentModal');
-    });
-
-    document.body.appendChild(modal);
-    return modal;
-}
-
-function showPaymentForm() {
-    const modal = document.getElementById('paymentModal') || createPaymentModal();
-    modal.classList.add('active');
-}
-
-// Adjustment Modal
-function createAdjustmentModal() {
-    const modal = document.createElement('div');
-    modal.id = 'adjustmentModal';
-    modal.className = 'modal';
-    modal.innerHTML = `<div class="modal-content">
-        <div class="modal-header">إضافة تسوية جديدة</div>
-        <div id="adjustmentMessage"></div>
-        <form id="adjustmentForm">
-            <div class="form-group">
-                <label for="adjustmentAmount">المبلغ * (موجب للإضافة، سالب للخصم)</label>
-                <input type="number" id="adjustmentAmount" required step="0.01">
-            </div>
-            <div class="form-group">
-                <label for="adjustmentReason">السبب</label>
-                <textarea id="adjustmentReason"></textarea>
-            </div>
-            <div class="form-actions">
-                <button type="button" class="btn-cancel" onclick="closeModal('adjustmentModal')">إلغاء</button>
-                <button type="submit" class="btn-submit">إضافة</button>
-            </div>
-        </form>
-    </div>`;
-
-    modal.querySelector('#adjustmentForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const clientId = getClientIdFromURL();
-        const amount = document.getElementById('adjustmentAmount').value;
-        const reason = document.getElementById('adjustmentReason').value;
-
-        try {
-            const resp = await fetch(`${API_BASE}/clients/${clientId}/adjustments`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount, reason })
-            });
-            if (!resp.ok) throw new Error('فشل إضافة التسوية');
-            showMessage('adjustmentMessage', 'تم إضافة التسوية بنجاح', 'success');
-            setTimeout(() => { closeModal('adjustmentModal'); location.reload(); }, 1000);
-        } catch (err) {
-            showMessage('adjustmentMessage', err.message, 'error');
-        }
-    });
-
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal('adjustmentModal');
-    });
-
-    document.body.appendChild(modal);
-    return modal;
-}
-
-function showAdjustmentForm() {
-    const modal = document.getElementById('adjustmentModal') || createAdjustmentModal();
-    modal.classList.add('active');
-}
-
-// Fetch & Render
-async function fetchClientDetails() {
-    const clientId = getClientIdFromURL();
-    if (!clientId) {
-        document.body.innerHTML = '<p style="color: red; margin: 20px;">خطأ: لم يتم تحديد العميل</p>';
-        return;
-    }
-
-    try {
-        const resp = await fetch(`${API_BASE}/clients/${clientId}`);
-        if (!resp.ok) throw new Error('فشل تحميل بيانات العميل');
-
-        const result = await resp.json();
-        allDeliveries = result.deliveries || [];
-        allPayments = result.payments || [];
-        allAdjustments = result.adjustments || [];
-
-        document.getElementById('clientName').textContent = result.client.name;
-
-        const summaryDiv = document.querySelector('.summary-card') || document.createElement('div');
-        renderFinancialSummary(summaryDiv, result.totals);
-
-        renderDeliveriesTable(allDeliveries);
-        renderPaymentsTable(allPayments);
-
-        const adjustmentsDiv = document.getElementById('adjustmentsTableDiv');
-        if (adjustmentsDiv) {
-            if (allAdjustments && allAdjustments.length > 0) {
-                renderAdjustmentsTable(allAdjustments);
-            } else {
-                adjustmentsDiv.innerHTML = '<p style="text-align: center; color: #999;">لا توجد تسويات</p>';
-            }
-        }
-
-        // Material cards section
-        const materialSection = document.createElement('div');
-        materialSection.className = 'section';
-        const materialTitle = document.createElement('h3');
-        materialTitle.textContent = 'ملخص المواد';
-        materialSection.appendChild(materialTitle);
-        const materialCardsDiv = document.createElement('div');
-        renderMaterialCards(materialCardsDiv, result.materialTotals);
-        materialSection.appendChild(materialCardsDiv);
-
-        const deliveriesSection = document.querySelector('.section');
-        if (deliveriesSection && deliveriesSection.parentNode) {
-            deliveriesSection.parentNode.insertBefore(materialSection, deliveriesSection.nextSibling);
-        }
-    } catch (err) {
-        console.error(err);
-        document.body.innerHTML = `<p style="color: red; margin: 20px;">خطأ: ${err.message}</p>`;
-    }
-}
-
-function showAdjustmentForm() {
-    const modal = document.getElementById('adjustmentModal') || createAdjustmentModal();
-    modal.classList.add('active');
-}
-
-function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.classList.remove('active');
-    }
-}
-
-function createPaymentModal() {
-    const modal = document.createElement('div');
-    modal.id = 'paymentModal';
-    modal.className = 'modal';
-    modal.innerHTML = `
-        <div class="modal-content">
-            <div class="modal-header">إضافة دفعة جديدة</div>
-            <div id="paymentMessage"></div>
-            <form id="paymentForm">
-                <div class="form-group">
-                    <label for="paymentAmount">المبلغ *</label>
-                    <input type="number" id="paymentAmount" required min="0" step="0.01">
-                </div>
-                <div class="form-group">
-                    <label for="paymentDate">التاريخ</label>
-                    <input type="date" id="paymentDate">
-                </div>
-                <div class="form-group">
-                    <label for="paymentNote">ملاحظات</label>
-                    <textarea id="paymentNote"></textarea>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn-cancel" onclick="closeModal('paymentModal')">إلغاء</button>
-                    <button type="submit" class="btn-submit">إضافة</button>
-                </div>
-            </form>
-        </div>
-    `;
-
-    const form = modal.querySelector('#paymentForm');
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const clientId = getClientIdFromURL();
-        const amount = document.getElementById('paymentAmount').value;
-        const paid_at = document.getElementById('paymentDate').value;
-        const note = document.getElementById('paymentNote').value;
-
-        try {
-            const resp = await fetch(`${API_BASE}/clients/${clientId}/payments`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount, paid_at, note })
-            });
-
-            if (!resp.ok) throw new Error('فشل إضافة الدفعة');
-
-            showMessage('paymentMessage', 'تم إضافة الدفعة بنجاح', 'success');
-            form.reset();
-            setTimeout(() => {
-                closeModal('paymentModal');
-                location.reload();
-            }, 1000);
-        } catch (err) {
-            showMessage('paymentMessage', err.message, 'error');
-        }
-    });
-
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal('paymentModal');
-    });
-
-    document.body.appendChild(modal);
-    return modal;
-}
-
-function createAdjustmentModal() {
-    const modal = document.createElement('div');
-    modal.id = 'adjustmentModal';
-    modal.className = 'modal';
-    modal.innerHTML = `
-        <div class="modal-content">
-            <div class="modal-header">إضافة تسوية جديدة</div>
-            <div id="adjustmentMessage"></div>
-            <form id="adjustmentForm">
-                <div class="form-group">
-                    <label for="adjustmentAmount">المبلغ * (موجب للإضافة، سالب للخصم)</label>
-                    <input type="number" id="adjustmentAmount" required step="0.01">
-                </div>
-                <div class="form-group">
-                    <label for="adjustmentReason">السبب</label>
-                    <textarea id="adjustmentReason"></textarea>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn-cancel" onclick="closeModal('adjustmentModal')">إلغاء</button>
-                    <button type="submit" class="btn-submit">إضافة</button>
-                </div>
-            </form>
-        </div>
-    `;
-
-    const form = modal.querySelector('#adjustmentForm');
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const clientId = getClientIdFromURL();
-        const amount = document.getElementById('adjustmentAmount').value;
-        const reason = document.getElementById('adjustmentReason').value;
-
-        try {
-            const resp = await fetch(`${API_BASE}/clients/${clientId}/adjustments`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount, reason })
-            });
-
-            if (!resp.ok) throw new Error('فشل إضافة التسوية');
-
-            showMessage('adjustmentMessage', 'تم إضافة التسوية بنجاح', 'success');
-            form.reset();
-            setTimeout(() => {
-                closeModal('adjustmentModal');
-                location.reload();
-            }, 1000);
-        } catch (err) {
-            showMessage('adjustmentMessage', err.message, 'error');
-        }
-    });
-
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal('adjustmentModal');
-    });
-
-    document.body.appendChild(modal);
-    return modal;
-}
-
-function showMessage(elementId, message, type) {
-    const msgDiv = document.getElementById(elementId);
-    if (msgDiv) {
-        msgDiv.textContent = message;
-        msgDiv.className = `form-message ${type}`;
-    }
-}
-
-async function fetchClientDetails() {
-    const clientId = getClientIdFromURL();
-    if (!clientId) {
-        document.body.innerHTML = '<p style="color: red; margin: 20px;">خطأ: لم يتم تحديد العميل</p>';
-        return;
-    }
-
-    try {
-        const resp = await fetch(`${API_BASE}/clients/${clientId}`);
-        if (!resp.ok) throw new Error('فشل تحميل بيانات العميل');
-
-        const result = await resp.json();
-
-        // Store in state
-        allDeliveries = result.deliveries || [];
-        allPayments = result.payments || [];
-        allAdjustments = result.adjustments || [];
-
-        // Update page title
-        document.getElementById('clientName').textContent = result.client.name;
-
-        // Render financial summary
-        const summaryDiv = document.querySelector('.summary-card') || document.createElement('div');
-        renderFinancialSummary(summaryDiv, result.totals);
-
-        // Render deliveries
-        const deliveriesDiv = document.getElementById('deliveriesTableDiv');
-        if (deliveriesDiv) renderDeliveriesTable(deliveriesDiv, allDeliveries);
-
-        // Render payments
-        const paymentsDiv = document.getElementById('paymentsTableDiv');
-        if (paymentsDiv) renderPaymentsTable(paymentsDiv, allPayments);
-
-        // Render adjustments
-        const adjustmentsDiv = document.getElementById('adjustmentsTableDiv');
-        if (adjustmentsDiv) {
-            if (allAdjustments && allAdjustments.length > 0) {
-                renderAdjustmentsTable(adjustmentsDiv, allAdjustments);
-            } else {
-                adjustmentsDiv.innerHTML = '<p style="text-align: center; color: #999;">لا توجد تسويات</p>';
-            }
-        }
-
-        // Render material cards - create section for them
-        const materialSection = document.createElement('div');
-        materialSection.className = 'section';
-        materialSection.id = 'materialSection';
-        const materialTitle = document.createElement('h3');
-        materialTitle.textContent = 'ملخص المواد';
-        materialSection.appendChild(materialTitle);
-
-        const materialCardsDiv = document.createElement('div');
-        materialCardsDiv.id = 'materialCardsDiv';
-        materialSection.appendChild(materialCardsDiv);
-
-        renderMaterialCards(materialCardsDiv, result.materialTotals);
-
-        // Insert material cards after deliveries section
-        const deliveriesSection = document.querySelector('.section');
-        if (deliveriesSection && deliveriesSection.parentNode) {
-            deliveriesSection.parentNode.insertBefore(materialSection, deliveriesSection.nextSibling);
-        }
-    } catch (err) {
-        console.error(err);
-        document.body.innerHTML = `<p style="color: red; margin: 20px;">خطأ: ${err.message}</p>`;
-    }
-}
-
-function renderAdjustmentsTable(container, adjustments) {
     const table = document.createElement('table');
-    table.className = 'client-detail-table';
+    table.className = 'table';
+    
+    // Header
     const thead = document.createElement('thead');
-    const headRow = document.createElement('tr');
-    const fields = [
-        { label: 'التاريخ', key: 'created_at' },
-        { label: 'القيمة', key: 'amount' },
-        { label: 'السبب', key: 'reason' }
+    const headerRow = document.createElement('tr');
+    const headers = [
+        'التاريخ', 'الكسارة', 'المقاول', 'المادة', 'رقم البون', 
+        'كمية الحمولة (م³)', 'سعر المتر', 'الإجمالي', 'إجراءات'
     ];
-    fields.forEach(f => {
+    
+    headers.forEach(header => {
         const th = document.createElement('th');
-        th.textContent = f.label;
-        headRow.appendChild(th);
+        th.textContent = header;
+        headerRow.appendChild(th);
     });
-    thead.appendChild(headRow);
+    thead.appendChild(headerRow);
     table.appendChild(thead);
-
+    
+    // Body
     const tbody = document.createElement('tbody');
-    adjustments.forEach(adj => {
-        const tr = document.createElement('tr');
-        fields.forEach(f => {
+    deliveries.forEach(delivery => {
+        const row = document.createElement('tr');
+        
+        const cells = [
+            formatDate(delivery.created_at),
+            delivery.crusher_name || '-',
+            delivery.contractor_name || '-',
+            delivery.material || '-',
+            delivery.voucher || '-',
+            formatQuantity(delivery.quantity) + ' م³', // Only quantity, not net_quantity
+            formatCurrency(delivery.price_per_meter),
+            formatCurrency(delivery.total_value)
+        ];
+        
+        cells.forEach(cellText => {
             const td = document.createElement('td');
-            if (f.key === 'amount') {
-                td.textContent = formatCurrency(adj[f.key]);
-                td.style.color = adj[f.key] > 0 ? '#388e3c' : '#c0392b';
-                td.style.fontWeight = 'bold';
-            } else if (f.key === 'created_at') {
-                td.textContent = formatDate(adj[f.key]);
-            } else {
-                td.textContent = adj[f.key] || '';
-            }
-            tr.appendChild(td);
+            td.textContent = cellText;
+            row.appendChild(td);
         });
-        tbody.appendChild(tr);
+        
+        // Actions cell
+        const actionsCell = document.createElement('td');
+        actionsCell.innerHTML = `
+            <button class="btn btn-sm btn-secondary" onclick="editDelivery(${delivery.id})" title="تعديل">✏️</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteDelivery(${delivery.id})" title="حذف">🗑️</button>
+        `;
+        row.appendChild(actionsCell);
+        
+        tbody.appendChild(row);
     });
     table.appendChild(tbody);
-
+    
     container.innerHTML = '';
-
-    const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'table-controls';
-
-    const addBtn = document.createElement('button');
-    addBtn.textContent = '+ إضافة تسوية جديدة';
-    addBtn.className = 'add-btn';
-    addBtn.addEventListener('click', () => showAdjustmentForm());
-
-    const searchInput = document.createElement('input');
-    searchInput.type = 'text';
-    searchInput.placeholder = 'ابحث في التسويات...';
-    searchInput.className = 'table-search';
-    searchInput.id = 'adjustmentsSearchInput';
-
-    const searchBtn = document.createElement('button');
-    searchBtn.textContent = '🔍 بحث';
-    searchBtn.className = 'search-btn';
-    searchBtn.addEventListener('click', () => {
-        filterAndRenderAdjustments(searchInput.value);
-    });
-
-    // Allow Enter key to trigger search
-    searchInput.addEventListener('keyup', (e) => {
-        if (e.key === 'Enter') {
-            filterAndRenderAdjustments(searchInput.value);
-        }
-    });
-
-    const sortSelect = document.createElement('select');
-    sortSelect.className = 'table-sort';
-    sortSelect.innerHTML = `
-        <option value="date-desc">الأحدث أولاً</option>
-        <option value="date-asc">الأقدم أولاً</option>
-        <option value="amount-desc">الأعلى مبلغ أولاً</option>
-        <option value="amount-asc">الأقل مبلغ أولاً</option>
-    `;
-    sortSelect.value = adjustmentsSort;
-    sortSelect.addEventListener('change', (e) => {
-        adjustmentsSort = e.target.value;
-        filterAndRenderAdjustments(searchInput.value);
-    });
-
-    controlsDiv.appendChild(addBtn);
-    controlsDiv.appendChild(searchInput);
-    controlsDiv.appendChild(searchBtn);
-    controlsDiv.appendChild(sortSelect);
-    container.appendChild(controlsDiv);
     container.appendChild(table);
 }
 
-function filterAndRenderAdjustments(searchTerm = '') {
-    let filtered = allAdjustments.filter(a => {
-        if (!searchTerm) return true;
-        const term = searchTerm.toLowerCase();
-        return (a.reason || '').toLowerCase().includes(term);
-    });
+function renderPayments(payments) {
+    const container = document.getElementById('paymentsContainer');
+    
+    if (!payments || payments.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">💰</div>
+                <div>لا توجد مدفوعات مسجلة</div>
+            </div>
+        `;
+        return;
+    }
 
-    // Apply sort
-    filtered = filtered.sort((a, b) => {
-        switch (adjustmentsSort) {
+    const table = document.createElement('table');
+    table.className = 'table';
+    
+    // Header
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    const headers = ['التاريخ', 'المبلغ', 'طريقة الدفع', 'التفاصيل', 'ملاحظات', 'الصورة', 'إجراءات'];
+    
+    headers.forEach(header => {
+        const th = document.createElement('th');
+        th.textContent = header;
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+    
+    // Body
+    const tbody = document.createElement('tbody');
+    payments.forEach(payment => {
+        const row = document.createElement('tr');
+        
+        const cells = [
+            formatDate(payment.paid_at),
+            formatCurrency(payment.amount),
+            payment.method || '-',
+            payment.details || '-',
+            payment.note || '-'
+        ];
+        
+        cells.forEach(cellText => {
+            const td = document.createElement('td');
+            td.textContent = cellText;
+            row.appendChild(td);
+        });
+        
+        // Image cell
+        const imageCell = document.createElement('td');
+        if (payment.payment_image) {
+            const imageBtn = document.createElement('button');
+            imageBtn.className = 'btn btn-sm btn-secondary';
+            imageBtn.title = 'عرض الصورة';
+            imageBtn.innerHTML = '🖼️ عرض';
+            imageBtn.setAttribute('data-image', payment.payment_image);
+            imageBtn.onclick = function() {
+                const imageData = this.getAttribute('data-image');
+                showImageModal(imageData);
+            };
+            imageCell.appendChild(imageBtn);
+        } else {
+            imageCell.textContent = '-';
+        }
+        row.appendChild(imageCell);
+        
+        // Actions cell
+        const actionsCell = document.createElement('td');
+        actionsCell.innerHTML = `
+            <button class="btn btn-sm btn-secondary" onclick="editPayment(${payment.id})" title="تعديل">✏️</button>
+            <button class="btn btn-sm btn-danger" onclick="deletePayment(${payment.id})" title="حذف">🗑️</button>
+        `;
+        row.appendChild(actionsCell);
+        
+        tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+    
+    container.innerHTML = '';
+    container.appendChild(table);
+}
+
+function renderAdjustments(adjustments) {
+    const container = document.getElementById('adjustmentsContainer');
+    
+    if (!adjustments || adjustments.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">⚖️</div>
+                <div>لا توجد تسويات مسجلة</div>
+            </div>
+        `;
+        return;
+    }
+
+    const table = document.createElement('table');
+    table.className = 'table';
+    
+    // Header
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    const headers = ['التاريخ', 'المبلغ', 'طريقة التسوية', 'التفاصيل', 'السبب', 'الصورة', 'إجراءات'];
+    
+    headers.forEach(header => {
+        const th = document.createElement('th');
+        th.textContent = header;
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+    
+    // Body
+    const tbody = document.createElement('tbody');
+    adjustments.forEach(adjustment => {
+        const row = document.createElement('tr');
+        
+        const amountCell = document.createElement('td');
+        const amount = adjustment.amount || 0;
+        
+        // Positive adjustment = for us (GREEN), Negative adjustment = against us (RED)
+        amountCell.className = amount > 0 ? 'text-success' : amount < 0 ? 'text-danger' : '';
+        const label = amount > 0 ? '(لنا)' : amount < 0 ? '(علينا)' : '';
+        amountCell.textContent = `${formatCurrency(Math.abs(amount))} ${label}`;
+        
+        const cells = [
+            formatDate(adjustment.created_at),
+            amountCell,
+            adjustment.method || '-',
+            adjustment.details || '-',
+            adjustment.reason || '-'
+        ];
+        
+        cells.forEach((cell, index) => {
+            if (index === 1) {
+                row.appendChild(cell);
+            } else {
+                const td = document.createElement('td');
+                td.textContent = cell;
+                row.appendChild(td);
+            }
+        });
+        
+        // Image cell
+        const imageCell = document.createElement('td');
+        if (adjustment.payment_image) {
+            imageCell.innerHTML = `
+                <button class="btn btn-sm btn-secondary" data-image="${adjustment.payment_image}" onclick="showImageModal(this.getAttribute('data-image'))" title="عرض الصورة">
+                    �️ عرض
+                </button>
+            `;
+        } else {
+            imageCell.textContent = '-';
+        }
+        row.appendChild(imageCell);
+        
+        // Actions cell
+        const actionsCell = document.createElement('td');
+        actionsCell.innerHTML = `
+            <button class="btn btn-sm btn-secondary" onclick="editAdjustment(${adjustment.id})" title="تعديل">✏️</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteAdjustment(${adjustment.id})" title="حذف">🗑️</button>
+        `;
+        row.appendChild(actionsCell);
+        
+        tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+    
+    container.innerHTML = '';
+    container.appendChild(table);
+}
+
+// Modal Functions
+function showModal(modalId) {
+    console.log('showModal called with:', modalId);
+    const modal = document.getElementById(modalId);
+    console.log('Modal element:', modal);
+    
+    if (modal) {
+        console.log('Adding active class and setting display to flex');
+        modal.classList.add('active');
+        modal.style.display = 'flex'; // Ensure modal is visible
+        
+        // Clear any previous messages
+        const messageElements = modal.querySelectorAll('[id$="Message"]');
+        messageElements.forEach(el => el.innerHTML = '');
+        
+        // Reset form to add mode if not already in edit mode
+        if (modalId === 'paymentModal') {
+            const form = document.getElementById('paymentForm');
+            if (!form.dataset.editId) {
+                resetPaymentForm();
+            }
+        } else if (modalId === 'adjustmentModal') {
+            const form = document.getElementById('adjustmentForm');
+            if (!form.dataset.editId) {
+                resetAdjustmentForm();
+            }
+        }
+        
+        console.log('Modal should now be visible');
+    } else {
+        console.error('Modal not found:', modalId);
+    }
+}
+
+function closeModal(modalId) {
+    console.log('closeModal called with:', modalId);
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        console.log('Removing active class and hiding modal');
+        modal.classList.remove('active');
+        modal.style.display = 'none'; // Ensure modal is hidden
+        
+        // Clear messages when closing
+        const messageElements = modal.querySelectorAll('[id$="Message"]');
+        messageElements.forEach(el => el.innerHTML = '');
+        
+        // Always reset forms when closing
+        if (modalId === 'paymentModal') {
+            resetPaymentForm();
+        } else if (modalId === 'adjustmentModal') {
+            resetAdjustmentForm();
+        }
+        
+        console.log('Modal hidden');
+    } else {
+        console.error('Modal not found:', modalId);
+    }
+}
+
+function resetPaymentForm() {
+    const form = document.getElementById('paymentForm');
+    form.reset();
+    delete form.dataset.editId;
+    
+    // Reset UI elements
+    document.getElementById('paymentDetailsGroup').style.display = 'none';
+    document.getElementById('paymentImageGroup').style.display = 'none';
+    document.getElementById('paymentDetails').required = false;
+    document.getElementById('paymentImagePreview').innerHTML = '';
+    
+    // Reset modal title and button
+    document.querySelector('#paymentModal .modal-header').textContent = 'إضافة دفعة جديدة';
+    document.querySelector('#paymentForm button[type="submit"]').textContent = 'إضافة';
+    
+    // Set default date
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('paymentDate').value = today;
+}
+
+function resetAdjustmentForm() {
+    const form = document.getElementById('adjustmentForm');
+    form.reset();
+    delete form.dataset.editId;
+    
+    // Reset UI elements
+    document.getElementById('adjustmentDetailsGroup').style.display = 'none';
+    document.getElementById('adjustmentImageGroup').style.display = 'none';
+    document.getElementById('adjustmentDetails').required = false;
+    document.getElementById('adjustmentImagePreview').innerHTML = '';
+    
+    // Reset modal title and button
+    document.querySelector('#adjustmentModal .modal-header').textContent = 'إضافة تسوية جديدة';
+    document.querySelector('#adjustmentForm button[type="submit"]').textContent = 'إضافة';
+}
+
+function showMessage(elementId, message, type) {
+    const msgDiv = document.getElementById(elementId);
+    if (msgDiv) {
+        msgDiv.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+    }
+}
+
+// CRUD Functions
+async function editPayment(paymentId) {
+    try {
+        // Find payment in current data
+        const payment = allPayments.find(p => p.id === paymentId);
+        if (!payment) {
+            alert('لم يتم العثور على الدفعة');
+            return;
+        }
+        
+        // Populate form with existing data
+        document.getElementById('paymentAmount').value = payment.amount;
+        document.getElementById('paymentMethod').value = payment.method || '';
+        document.getElementById('paymentDetails').value = payment.details || '';
+        document.getElementById('paymentDate').value = payment.paid_at ? payment.paid_at.split('T')[0] : '';
+        document.getElementById('paymentNote').value = payment.note || '';
+        
+        // Show/hide details field based on method
+        const detailsGroup = document.getElementById('paymentDetailsGroup');
+        const detailsInput = document.getElementById('paymentDetails');
+        if (['بنكي', 'شيك', 'انستاباي', 'فودافون كاش'].includes(payment.method)) {
+            detailsGroup.style.display = 'block';
+            detailsInput.required = true;
+        }
+        
+        // Change form to edit mode
+        const form = document.getElementById('paymentForm');
+        form.dataset.editId = paymentId;
+        document.querySelector('#paymentModal .modal-header').textContent = 'تعديل الدفعة';
+        document.querySelector('#paymentForm button[type="submit"]').textContent = 'حفظ التعديل';
+        
+        showModal('paymentModal');
+    } catch (error) {
+        console.error('Error editing payment:', error);
+        alert('حدث خطأ في تحميل بيانات الدفعة');
+    }
+}
+
+async function deletePayment(paymentId) {
+    if (!confirm('هل أنت متأكد من حذف هذه الدفعة؟')) {
+        return;
+    }
+    
+    try {
+        const clientId = getClientIdFromURL();
+        const response = await fetch(`${API_BASE}/clients/${clientId}/payments/${paymentId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error('فشل في حذف الدفعة');
+        }
+        
+        alert('تم حذف الدفعة بنجاح');
+        loadClientDetails(); // Reload data
+    } catch (error) {
+        console.error('Error deleting payment:', error);
+        alert('حدث خطأ في حذف الدفعة');
+    }
+}
+
+async function editAdjustment(adjustmentId) {
+    try {
+        // Find adjustment in current data
+        const adjustment = allAdjustments.find(a => a.id === adjustmentId);
+        if (!adjustment) {
+            alert('لم يتم العثور على التسوية');
+            return;
+        }
+        
+        // Populate form with existing data
+        document.getElementById('adjustmentAmount').value = adjustment.amount;
+        document.getElementById('adjustmentMethod').value = adjustment.method || '';
+        document.getElementById('adjustmentDetails').value = adjustment.details || '';
+        document.getElementById('adjustmentReason').value = adjustment.reason || '';
+        
+        // Show/hide details field based on method
+        const detailsGroup = document.getElementById('adjustmentDetailsGroup');
+        const detailsInput = document.getElementById('adjustmentDetails');
+        if (['بنكي', 'شيك', 'انستاباي', 'فودافون كاش'].includes(adjustment.method)) {
+            detailsGroup.style.display = 'block';
+            detailsInput.required = true;
+        }
+        
+        // Change form to edit mode
+        const form = document.getElementById('adjustmentForm');
+        form.dataset.editId = adjustmentId;
+        document.querySelector('#adjustmentModal .modal-header').textContent = 'تعديل التسوية';
+        document.querySelector('#adjustmentForm button[type="submit"]').textContent = 'حفظ التعديل';
+        
+        showModal('adjustmentModal');
+    } catch (error) {
+        console.error('Error editing adjustment:', error);
+        alert('حدث خطأ في تحميل بيانات التسوية');
+    }
+}
+
+async function deleteAdjustment(adjustmentId) {
+    if (!confirm('هل أنت متأكد من حذف هذه التسوية؟')) {
+        return;
+    }
+    
+    try {
+        const clientId = getClientIdFromURL();
+        const response = await fetch(`${API_BASE}/clients/${clientId}/adjustments/${adjustmentId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error('فشل في حذف التسوية');
+        }
+        
+        alert('تم حذف التسوية بنجاح');
+        loadClientDetails(); // Reload data
+    } catch (error) {
+        console.error('Error deleting adjustment:', error);
+        alert('حدث خطأ في حذف التسوية');
+    }
+}
+
+async function updatePayment(paymentId, paymentData) {
+    const clientId = getClientIdFromURL();
+    const response = await fetch(`${API_BASE}/clients/${clientId}/payments/${paymentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(paymentData)
+    });
+    
+    if (!response.ok) {
+        let errorMessage = 'فشل في تحديث الدفعة';
+        try {
+            const responseClone = response.clone();
+            const errorData = await responseClone.json();
+            errorMessage = errorData.message || errorMessage;
+        } catch (parseError) {
+            try {
+                const errorText = await response.text();
+                if (errorText) errorMessage = errorText;
+            } catch (textError) {
+                console.log('Could not read error response');
+            }
+        }
+        throw new Error(errorMessage);
+    }
+    
+    return response.json();
+}
+
+async function updateAdjustment(adjustmentId, adjustmentData) {
+    const clientId = getClientIdFromURL();
+    const response = await fetch(`${API_BASE}/clients/${clientId}/adjustments/${adjustmentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adjustmentData)
+    });
+    
+    if (!response.ok) {
+        let errorMessage = 'فشل في تحديث التسوية';
+        try {
+            const responseClone = response.clone();
+            const errorData = await responseClone.json();
+            errorMessage = errorData.message || errorMessage;
+        } catch (parseError) {
+            try {
+                const errorText = await response.text();
+                if (errorText) errorMessage = errorText;
+            } catch (textError) {
+                console.log('Could not read error response');
+            }
+        }
+        throw new Error(errorMessage);
+    }
+    
+    return response.json();
+}
+async function addPayment(clientId, paymentData) {
+    console.log('Sending payment data:', paymentData);
+    console.log('Sending payment request to:', `${API_BASE}/clients/${clientId}/payments`);
+    console.log('Payment data:', paymentData);
+    
+    const response = await fetch(`${API_BASE}/clients/${clientId}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(paymentData)
+    });
+    
+    console.log('Response status:', response.status);
+    console.log('Response headers:', response.headers);
+    
+    if (!response.ok) {
+        let errorMessage = 'فشل في إضافة الدفعة';
+        try {
+            const responseClone = response.clone();
+            const errorData = await responseClone.json();
+            errorMessage = errorData.message || errorMessage;
+        } catch (parseError) {
+            console.log('Could not parse error response as JSON');
+            try {
+                const errorText = await response.text();
+                console.log('Error response text:', errorText);
+                if (errorText) errorMessage = errorText;
+            } catch (textError) {
+                console.log('Could not read error response as text');
+            }
+        }
+        console.log('Payment API error:', errorMessage);
+        throw new Error(errorMessage);
+    }
+    
+    return response.json();
+}
+
+async function addAdjustment(clientId, adjustmentData) {
+    console.log('Sending adjustment data:', adjustmentData);
+    
+    const response = await fetch(`${API_BASE}/clients/${clientId}/adjustments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adjustmentData)
+    });
+    
+    if (!response.ok) {
+        let errorMessage = 'فشل في إضافة التسوية';
+        try {
+            const responseClone = response.clone();
+            const errorData = await responseClone.json();
+            errorMessage = errorData.message || errorMessage;
+        } catch (parseError) {
+            try {
+                const errorText = await response.text();
+                if (errorText) errorMessage = errorText;
+            } catch (textError) {
+                console.log('Could not read error response');
+            }
+        }
+        throw new Error(errorMessage);
+    }
+    
+    return response.json();
+}
+
+// Event Handlers
+function setupEventHandlers() {
+    // Add Payment Button
+    document.getElementById('addPaymentBtn').addEventListener('click', () => {
+        showModal('paymentModal');
+    });
+    
+    // Add Adjustment Button
+    document.getElementById('addAdjustmentBtn').addEventListener('click', () => {
+        showModal('adjustmentModal');
+    });
+    
+    // Payment method change handler
+    document.getElementById('paymentMethod').addEventListener('change', (e) => {
+        const detailsGroup = document.getElementById('paymentDetailsGroup');
+        const imageGroup = document.getElementById('paymentImageGroup');
+        const detailsInput = document.getElementById('paymentDetails');
+        
+        if (['بنكي', 'شيك', 'انستاباي', 'فودافون كاش'].includes(e.target.value)) {
+            detailsGroup.style.display = 'block';
+            imageGroup.style.display = 'block';
+            detailsInput.required = true;
+            
+            if (e.target.value === 'شيك') {
+                detailsInput.placeholder = 'رقم الشيك';
+            } else if (e.target.value === 'بنكي') {
+                detailsInput.placeholder = 'رقم المعاملة البنكية';
+            } else {
+                detailsInput.placeholder = 'رقم المعاملة';
+            }
+        } else {
+            detailsGroup.style.display = 'none';
+            imageGroup.style.display = 'none';
+            detailsInput.required = false;
+        }
+    });
+    
+    // Adjustment method change handler
+    document.getElementById('adjustmentMethod').addEventListener('change', (e) => {
+        const detailsGroup = document.getElementById('adjustmentDetailsGroup');
+        const imageGroup = document.getElementById('adjustmentImageGroup');
+        const detailsInput = document.getElementById('adjustmentDetails');
+        
+        if (['بنكي', 'شيك', 'انستاباي', 'فودافون كاش'].includes(e.target.value)) {
+            detailsGroup.style.display = 'block';
+            imageGroup.style.display = 'block';
+            detailsInput.required = true;
+            
+            if (e.target.value === 'شيك') {
+                detailsInput.placeholder = 'رقم الشيك';
+            } else if (e.target.value === 'بنكي') {
+                detailsInput.placeholder = 'رقم المعاملة البنكية';
+            } else {
+                detailsInput.placeholder = 'رقم المعاملة';
+            }
+        } else {
+            detailsGroup.style.display = 'none';
+            imageGroup.style.display = 'none';
+            detailsInput.required = false;
+        }
+    });
+    
+    // Payment Form
+    document.getElementById('paymentForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const clientId = getClientIdFromURL();
+        const amount = document.getElementById('paymentAmount').value;
+        const paid_at = document.getElementById('paymentDate').value;
+        const note = document.getElementById('paymentNote').value;
+        const method = document.getElementById('paymentMethod').value;
+        const details = document.getElementById('paymentDetails').value;
+        
+        const paymentData = { amount, paid_at, note, method };
+        if (details) paymentData.details = details;
+        
+        // Handle image upload
+        const imageFile = document.getElementById('paymentImage').files[0];
+        if (imageFile) {
+            // Validate file size (max 5MB)
+            if (imageFile.size > 5 * 1024 * 1024) {
+                showMessage('paymentMessage', 'حجم الصورة كبير جداً (الحد الأقصى 5 ميجابايت)', 'error');
+                return;
+            }
+            
+            // Validate file type
+            if (!imageFile.type.startsWith('image/')) {
+                showMessage('paymentMessage', 'يرجى اختيار ملف صورة صالح', 'error');
+                return;
+            }
+            
+            try {
+                const payment_image = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const result = e.target.result;
+                        console.log('Image read successfully, size:', result.length);
+                        
+                        // Check if the base64 data is too large (over 1MB when encoded)
+                        if (result.length > 1024 * 1024) {
+                            console.log('Image is large, attempting to compress...');
+                            // Try to compress the image
+                            compressImage(result, 0.7).then(resolve).catch(() => {
+                                console.log('Compression failed, using original');
+                                resolve(result);
+                            });
+                        } else {
+                            resolve(result);
+                        }
+                    };
+                    reader.onerror = (e) => {
+                        console.error('FileReader error:', e);
+                        reject(new Error('فشل في قراءة الصورة'));
+                    };
+                    reader.readAsDataURL(imageFile);
+                });
+                paymentData.payment_image = payment_image;
+            } catch (error) {
+                console.error('Error reading image:', error);
+                showMessage('paymentMessage', 'خطأ في قراءة الصورة: ' + error.message, 'error');
+                return;
+            }
+        }
+        
+        const form = e.target;
+        const editId = form.dataset.editId;
+        
+        try {
+            if (editId) {
+                // Update existing payment
+                await updatePayment(editId, paymentData);
+                showMessage('paymentMessage', 'تم تحديث الدفعة بنجاح', 'success');
+            } else {
+                // Add new payment
+                await addPayment(clientId, paymentData);
+                showMessage('paymentMessage', 'تم إضافة الدفعة بنجاح', 'success');
+            }
+            
+            setTimeout(() => {
+                closeModal('paymentModal');
+                loadClientDetails(); // Reload data
+            }, 1000);
+        } catch (error) {
+            console.error('Payment error:', error);
+            showMessage('paymentMessage', error.message, 'error');
+        }
+    });
+    
+    // Adjustment Form
+    document.getElementById('adjustmentForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const clientId = getClientIdFromURL();
+        const amount = document.getElementById('adjustmentAmount').value;
+        const reason = document.getElementById('adjustmentReason').value;
+        const method = document.getElementById('adjustmentMethod').value;
+        const details = document.getElementById('adjustmentDetails').value;
+        
+        const adjustmentData = { amount, reason, method };
+        if (details) adjustmentData.details = details;
+        
+        // Handle image upload
+        const imageFile = document.getElementById('adjustmentImage').files[0];
+        if (imageFile) {
+            // Validate file size (max 5MB)
+            if (imageFile.size > 5 * 1024 * 1024) {
+                showMessage('adjustmentMessage', 'حجم الصورة كبير جداً (الحد الأقصى 5 ميجابايت)', 'error');
+                return;
+            }
+            
+            // Validate file type
+            if (!imageFile.type.startsWith('image/')) {
+                showMessage('adjustmentMessage', 'يرجى اختيار ملف صورة صالح', 'error');
+                return;
+            }
+            
+            try {
+                const payment_image = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const result = e.target.result;
+                        console.log('Adjustment image read successfully, size:', result.length);
+                        
+                        // Check if the base64 data is too large (over 1MB when encoded)
+                        if (result.length > 1024 * 1024) {
+                            console.log('Adjustment image is large, attempting to compress...');
+                            // Try to compress the image
+                            compressImage(result, 0.7).then(resolve).catch(() => {
+                                console.log('Compression failed, using original');
+                                resolve(result);
+                            });
+                        } else {
+                            resolve(result);
+                        }
+                    };
+                    reader.onerror = (e) => {
+                        console.error('FileReader error:', e);
+                        reject(new Error('فشل في قراءة الصورة'));
+                    };
+                    reader.readAsDataURL(imageFile);
+                });
+                adjustmentData.payment_image = payment_image;
+            } catch (error) {
+                console.error('Error reading image:', error);
+                showMessage('adjustmentMessage', 'خطأ في قراءة الصورة: ' + error.message, 'error');
+                return;
+            }
+        }
+        
+        const form = e.target;
+        const editId = form.dataset.editId;
+        
+        try {
+            if (editId) {
+                // Update existing adjustment
+                await updateAdjustment(editId, adjustmentData);
+                showMessage('adjustmentMessage', 'تم تحديث التسوية بنجاح', 'success');
+            } else {
+                // Add new adjustment
+                await addAdjustment(clientId, adjustmentData);
+                showMessage('adjustmentMessage', 'تم إضافة التسوية بنجاح', 'success');
+            }
+            
+            setTimeout(() => {
+                closeModal('adjustmentModal');
+                loadClientDetails(); // Reload data
+            }, 1000);
+        } catch (error) {
+            console.error('Adjustment error:', error);
+            showMessage('adjustmentMessage', error.message, 'error');
+        }
+    });
+    
+    // Search and Sort functionality
+    document.getElementById('deliveriesSearch').addEventListener('input', filterDeliveries);
+    document.getElementById('deliveriesDateFrom').addEventListener('change', filterDeliveries);
+    document.getElementById('deliveriesDateTo').addEventListener('change', filterDeliveries);
+    document.getElementById('deliveriesSort').addEventListener('change', filterDeliveries);
+    document.getElementById('paymentsSearch').addEventListener('input', filterPayments);
+    document.getElementById('paymentsDateFrom').addEventListener('change', filterPayments);
+    document.getElementById('paymentsDateTo').addEventListener('change', filterPayments);
+    document.getElementById('paymentsSort').addEventListener('change', filterPayments);
+    document.getElementById('adjustmentsSearch').addEventListener('input', filterAdjustments);
+    document.getElementById('adjustmentsDateFrom').addEventListener('change', filterAdjustments);
+    document.getElementById('adjustmentsDateTo').addEventListener('change', filterAdjustments);
+    document.getElementById('adjustmentsSort').addEventListener('change', filterAdjustments);
+    
+    // Report buttons - direct event listeners
+    const deliveriesReportBtn = document.getElementById('generateDeliveriesReportBtn');
+    if (deliveriesReportBtn) {
+        deliveriesReportBtn.addEventListener('click', generateDeliveriesReport);
+    }
+    
+    const accountStatementBtn = document.getElementById('generateAccountStatementBtn');
+    if (accountStatementBtn) {
+        accountStatementBtn.addEventListener('click', generateAccountStatement);
+    }
+    
+    // Modal close on backdrop click
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal(modal.id);
+            }
+        });
+    });
+    
+    // Image upload handlers
+    document.getElementById('paymentImage').addEventListener('change', handleImageUpload);
+    document.getElementById('adjustmentImage').addEventListener('change', handleImageUpload);
+}
+
+function handleImageUpload(e) {
+    const file = e.target.files[0];
+    const previewId = e.target.id === 'paymentImage' ? 'paymentImagePreview' : 'adjustmentImagePreview';
+    const previewContainer = document.getElementById(previewId);
+    
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            previewContainer.innerHTML = `
+                <div class="image-preview-container">
+                    <img src="${event.target.result}" alt="معاينة الصورة" class="image-preview">
+                    <button type="button" class="remove-image" onclick="removeImage('${e.target.id}', '${previewId}')">&times;</button>
+                </div>
+            `;
+        };
+        reader.readAsDataURL(file);
+    } else {
+        previewContainer.innerHTML = '';
+    }
+}
+
+function filterDeliveries() {
+    const searchTerm = document.getElementById('deliveriesSearch').value.toLowerCase();
+    const dateFrom = document.getElementById('deliveriesDateFrom').value;
+    const dateTo = document.getElementById('deliveriesDateTo').value;
+    const sortBy = document.getElementById('deliveriesSort').value;
+    
+    let filtered = allDeliveries.filter(delivery => {
+        // Text search
+        const matchesSearch = !searchTerm || 
+            (delivery.crusher_name || '').toLowerCase().includes(searchTerm) ||
+            (delivery.contractor_name || '').toLowerCase().includes(searchTerm) ||
+            (delivery.material || '').toLowerCase().includes(searchTerm) ||
+            (delivery.voucher || '').toLowerCase().includes(searchTerm);
+        
+        // Date filter
+        const deliveryDate = new Date(delivery.created_at).toISOString().split('T')[0];
+        const matchesDateFrom = !dateFrom || deliveryDate >= dateFrom;
+        const matchesDateTo = !dateTo || deliveryDate <= dateTo;
+        
+        return matchesSearch && matchesDateFrom && matchesDateTo;
+    });
+    
+    // Sort
+    filtered.sort((a, b) => {
+        switch (sortBy) {
+            case 'date-asc':
+                return new Date(a.created_at) - new Date(b.created_at);
+            case 'date-desc':
+                return new Date(b.created_at) - new Date(a.created_at);
+            case 'value-asc':
+                return (a.total_value || 0) - (b.total_value || 0);
+            case 'value-desc':
+                return (b.total_value || 0) - (a.total_value || 0);
+            default:
+                return 0;
+        }
+    });
+    
+    renderDeliveries(filtered);
+}
+
+function filterPayments() {
+    const searchTerm = document.getElementById('paymentsSearch').value.toLowerCase();
+    const dateFrom = document.getElementById('paymentsDateFrom').value;
+    const dateTo = document.getElementById('paymentsDateTo').value;
+    const sortBy = document.getElementById('paymentsSort').value;
+    
+    let filtered = allPayments.filter(payment => {
+        // Text search
+        const matchesSearch = !searchTerm || 
+            (payment.note || '').toLowerCase().includes(searchTerm) ||
+            (payment.method || '').toLowerCase().includes(searchTerm) ||
+            (payment.details || '').toLowerCase().includes(searchTerm);
+        
+        // Date filter
+        const paymentDate = new Date(payment.paid_at).toISOString().split('T')[0];
+        const matchesDateFrom = !dateFrom || paymentDate >= dateFrom;
+        const matchesDateTo = !dateTo || paymentDate <= dateTo;
+        
+        return matchesSearch && matchesDateFrom && matchesDateTo;
+    });
+    
+    // Sort
+    filtered.sort((a, b) => {
+        switch (sortBy) {
+            case 'date-asc':
+                return new Date(a.paid_at) - new Date(b.paid_at);
+            case 'date-desc':
+                return new Date(b.paid_at) - new Date(a.paid_at);
+            case 'amount-asc':
+                return (a.amount || 0) - (b.amount || 0);
+            case 'amount-desc':
+                return (b.amount || 0) - (a.amount || 0);
+            default:
+                return 0;
+        }
+    });
+    
+    renderPayments(filtered);
+}
+
+function filterAdjustments() {
+    const searchTerm = document.getElementById('adjustmentsSearch').value.toLowerCase();
+    const dateFrom = document.getElementById('adjustmentsDateFrom').value;
+    const dateTo = document.getElementById('adjustmentsDateTo').value;
+    const sortBy = document.getElementById('adjustmentsSort').value;
+    
+    let filtered = allAdjustments.filter(adjustment => {
+        // Text search
+        const matchesSearch = !searchTerm || 
+            (adjustment.reason || '').toLowerCase().includes(searchTerm) ||
+            (adjustment.method || '').toLowerCase().includes(searchTerm) ||
+            (adjustment.details || '').toLowerCase().includes(searchTerm);
+        
+        // Date filter
+        const adjustmentDate = new Date(adjustment.created_at).toISOString().split('T')[0];
+        const matchesDateFrom = !dateFrom || adjustmentDate >= dateFrom;
+        const matchesDateTo = !dateTo || adjustmentDate <= dateTo;
+        
+        return matchesSearch && matchesDateFrom && matchesDateTo;
+    });
+    
+    // Sort
+    filtered.sort((a, b) => {
+        switch (sortBy) {
             case 'date-asc':
                 return new Date(a.created_at) - new Date(b.created_at);
             case 'date-desc':
@@ -1056,57 +1110,505 @@ function filterAndRenderAdjustments(searchTerm = '') {
                 return 0;
         }
     });
-
-    const container = document.getElementById('adjustmentsTableDiv');
-    if (!container) return;
-
-    const fields = [
-        { label: 'التاريخ', key: 'created_at' },
-        { label: 'القيمة', key: 'amount' },
-        { label: 'السبب', key: 'reason' }
-    ];
-
-    container.innerHTML = '';
-    const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'table-controls';
-
-    const addBtn = document.createElement('button');
-    addBtn.textContent = '+ إضافة تسوية جديدة';
-    addBtn.className = 'add-btn';
-    addBtn.addEventListener('click', showAdjustmentForm);
-
-    const searchInput = document.createElement('input');
-    searchInput.type = 'text';
-    searchInput.placeholder = 'ابحث في التسويات...';
-    searchInput.className = 'table-search';
-    searchInput.value = searchTerm;
-
-    const searchBtn = document.createElement('button');
-    searchBtn.textContent = '🔍 بحث';
-    searchBtn.className = 'search-btn';
-    searchBtn.addEventListener('click', () => filterAndRenderAdjustments(searchInput.value));
-    searchInput.addEventListener('keyup', (e) => {
-        if (e.key === 'Enter') filterAndRenderAdjustments(searchInput.value);
-    });
-
-    const sortSelect = document.createElement('select');
-    sortSelect.className = 'table-sort';
-    sortSelect.innerHTML = `<option value="date-desc">الأحدث أولاً</option>
-                            <option value="date-asc">الأقدم أولاً</option>
-                            <option value="amount-desc">الأعلى مبلغ أولاً</option>
-                            <option value="amount-asc">الأقل مبلغ أولاً</option>`;
-    sortSelect.value = adjustmentsSort;
-    sortSelect.addEventListener('change', (e) => {
-        adjustmentsSort = e.target.value;
-        filterAndRenderAdjustments(searchInput.value);
-    });
-
-    controlsDiv.appendChild(addBtn);
-    controlsDiv.appendChild(searchInput);
-    controlsDiv.appendChild(searchBtn);
-    controlsDiv.appendChild(sortSelect);
-    container.appendChild(controlsDiv);
-    container.appendChild(buildTable(filtered, fields));
+    
+    renderAdjustments(filtered);
 }
 
-document.addEventListener('DOMContentLoaded', fetchClientDetails);
+// Image compression function
+function compressImage(dataUrl, quality = 0.7) {
+    return new Promise((resolve, reject) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        img.onload = function() {
+            // Calculate new dimensions (max 1200px on longest side)
+            const maxSize = 1200;
+            let { width, height } = img;
+            
+            if (width > height && width > maxSize) {
+                height = (height * maxSize) / width;
+                width = maxSize;
+            } else if (height > maxSize) {
+                width = (width * maxSize) / height;
+                height = maxSize;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            // Draw and compress
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            try {
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                console.log('Image compressed from', dataUrl.length, 'to', compressedDataUrl.length, 'bytes');
+                resolve(compressedDataUrl);
+            } catch (error) {
+                console.error('Compression failed:', error);
+                reject(error);
+            }
+        };
+        
+        img.onerror = function() {
+            console.error('Failed to load image for compression');
+            reject(new Error('Failed to load image for compression'));
+        };
+        
+        img.src = dataUrl;
+    });
+}
+
+// Main Load Function
+async function loadClientDetails() {
+    const clientId = getClientIdFromURL();
+    
+    if (!clientId) {
+        document.querySelector('.main-content').innerHTML = `
+            <div class="error">
+                <h2>خطأ</h2>
+                <p>لم يتم تحديد العميل</p>
+                <a href="clients.html" class="btn btn-primary">العودة للعملاء</a>
+            </div>
+        `;
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/clients/${clientId}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: فشل في تحميل بيانات العميل`);
+        }
+        
+        const data = await response.json();
+        clientData = data;
+        
+        // Store data for filtering
+        allDeliveries = data.deliveries || [];
+        allPayments = data.payments || [];
+        allAdjustments = data.adjustments || [];
+        
+        // Update page title
+        document.getElementById('clientName').textContent = `تفاصيل العميل: ${data.client.name}`;
+        
+        // Render all sections
+        renderSummary(data.totals || {});
+        renderMaterials(data.materialTotals || []);
+        renderDeliveries(allDeliveries);
+        renderPayments(allPayments);
+        renderAdjustments(allAdjustments);
+        
+    } catch (error) {
+        console.error('Error loading client details:', error);
+        document.querySelector('.main-content').innerHTML = `
+            <div class="error">
+                <h2>خطأ في تحميل البيانات</h2>
+                <p>${error.message}</p>
+                <a href="clients.html" class="btn btn-primary">العودة للعملاء</a>
+            </div>
+        `;
+    }
+}
+
+// Edit client functionality
+function openEditClientModal() {
+    console.log('openEditClientModal called');
+    console.log('clientData:', clientData);
+    
+    if (!clientData || !clientData.client) {
+        console.error('No client data available');
+        alert('لا توجد بيانات عميل للتعديل');
+        return;
+    }
+    
+    const client = clientData.client;
+    console.log('Client:', client);
+    
+    // Fill form with current data
+    document.getElementById('editClientName').value = client.name || '';
+    document.getElementById('editClientPhone').value = client.phone || '';
+    document.getElementById('editOpeningBalance').value = client.opening_balance || 0;
+    
+    console.log('Showing modal...');
+    // Show modal
+    showModal('editClientModal');
+}
+
+async function updateClient(clientId, clientData) {
+    try {
+        console.log('🔄 Updating client:', clientId, clientData);
+        console.log('📤 API URL:', `${API_BASE}/clients/${clientId}`);
+        
+        const response = await fetch(`${API_BASE}/clients/${clientId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(clientData)
+        });
+        
+        console.log('📥 Response status:', response.status, response.statusText);
+        console.log('📥 Response headers:', response.headers);
+        
+        if (!response.ok) {
+            let errorMessage = 'فشل في تحديث بيانات العميل';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.message || errorMessage;
+                console.error('❌ Server error data:', errorData);
+            } catch (e) {
+                const errorText = await response.text();
+                console.error('❌ Server error text:', errorText);
+                errorMessage = `خطأ في السيرفر (${response.status}): ${errorText}`;
+            }
+            throw new Error(errorMessage);
+        }
+        
+        const result = await response.json();
+        console.log('✅ Update successful:', result);
+        return result;
+    } catch (error) {
+        console.error('❌ Update client error:', error);
+        throw error;
+    }
+}
+
+function setupEditClientHandlers() {
+    console.log('Setting up edit client handlers...');
+    
+    // Edit client button
+    const editBtn = document.getElementById('editClientBtn');
+    if (editBtn) {
+        console.log('Edit button found, adding event listener');
+        editBtn.addEventListener('click', function() {
+            console.log('Edit button clicked!');
+            openEditClientModal();
+        });
+        console.log('Event listener added successfully');
+    } else {
+        console.error('Edit button not found!');
+    }
+    
+    // Edit client form
+    document.getElementById('editClientForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const clientId = getClientIdFromURL();
+        const formData = new FormData(e.target);
+        
+        const clientData = {
+            name: formData.get('name').trim(),
+            phone: formData.get('phone').trim() || null,
+            opening_balance: parseFloat(formData.get('opening_balance')) || 0
+        };
+        
+        if (!clientData.name) {
+            showMessage('editClientMessage', 'اسم العميل مطلوب', 'error');
+            return;
+        }
+        
+        try {
+            showMessage('editClientMessage', 'جاري حفظ التعديلات...', 'info');
+            
+            await updateClient(clientId, clientData);
+            
+            showMessage('editClientMessage', 'تم حفظ التعديلات بنجاح', 'success');
+            
+            // Close modal and reload data
+            setTimeout(() => {
+                closeModal('editClientModal');
+                loadClientDetails();
+            }, 1000);
+            
+        } catch (error) {
+            showMessage('editClientMessage', error.message, 'error');
+        }
+    });
+}
+
+// Filter clear functions
+function clearDeliveriesFilters() {
+    document.getElementById('deliveriesSearch').value = '';
+    document.getElementById('deliveriesDateFrom').value = '';
+    document.getElementById('deliveriesDateTo').value = '';
+    document.getElementById('deliveriesSort').value = 'date-desc';
+    filterDeliveries();
+}
+
+function clearPaymentsFilters() {
+    document.getElementById('paymentsSearch').value = '';
+    document.getElementById('paymentsDateFrom').value = '';
+    document.getElementById('paymentsDateTo').value = '';
+    document.getElementById('paymentsSort').value = 'date-desc';
+    filterPayments();
+}
+
+function clearAdjustmentsFilters() {
+    document.getElementById('adjustmentsSearch').value = '';
+    document.getElementById('adjustmentsDateFrom').value = '';
+    document.getElementById('adjustmentsDateTo').value = '';
+    document.getElementById('adjustmentsSort').value = 'date-desc';
+    filterAdjustments();
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    // Set default date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('paymentDate').value = today;
+    
+    // Set default date ranges for reports
+    const firstOfYear = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+    document.getElementById('deliveriesFromDate').value = firstOfYear;
+    document.getElementById('deliveriesToDate').value = today;
+    
+    setupEventHandlers();
+    setupEditClientHandlers();
+    loadClientDetails();
+});
+
+// Event delegation for CSP compliance
+// Event delegation for CSP compliance - SIMPLIFIED
+document.addEventListener('click', function(e) {
+    // Handle modal close buttons
+    if (e.target.classList.contains('modal-close')) {
+        const modal = e.target.closest('.modal');
+        if (modal) {
+            closeModal(modal.id);
+        }
+    }
+    
+    // Handle cancel buttons in modals
+    if (e.target.textContent === 'إلغاء' && e.target.classList.contains('btn-secondary')) {
+        const modal = e.target.closest('.modal');
+        if (modal) {
+            closeModal(modal.id);
+        }
+    }
+    
+    // Handle filter clear buttons
+    if (e.target.textContent === 'مسح الفلاتر') {
+        if (e.target.closest('#deliveriesSection')) {
+            clearDeliveriesFilters();
+        } else if (e.target.closest('#paymentsSection')) {
+            clearPaymentsFilters();
+        } else if (e.target.closest('#adjustmentsSection')) {
+            clearAdjustmentsFilters();
+        }
+    }
+    
+    // ONLY handle report buttons with specific IDs or classes - NO TEXT MATCHING
+    // Remove all text-based event handling to prevent unwanted triggers
+});
+
+// Make functions available globally for onclick handlers
+window.closeModal = closeModal;
+window.editPayment = editPayment;
+window.deletePayment = deletePayment;
+window.editAdjustment = editAdjustment;
+window.deleteAdjustment = deleteAdjustment;
+window.removeImage = function(inputId, previewId) {
+    document.getElementById(inputId.replace('Preview', '')).value = '';
+    document.getElementById(previewId).innerHTML = '';
+};
+window.showImageModal = function(imageData) {
+    const modalImage = document.getElementById('modalImage');
+    
+    console.log('Showing image modal with data:', imageData ? imageData.substring(0, 50) + '...' : 'null');
+    
+    // Check if imageData is valid
+    if (!imageData || imageData === 'null' || imageData === 'undefined' || imageData.trim() === '') {
+        alert('لا توجد صورة لعرضها');
+        return;
+    }
+    
+    // Clear any previous error handlers
+    modalImage.onerror = null;
+    modalImage.onload = null;
+    
+    // Add error handler for the image
+    modalImage.onerror = function() {
+        console.error('Failed to load image. Data length:', imageData ? imageData.length : 0);
+        console.error('Image data preview:', imageData ? imageData.substring(0, 200) : 'null');
+        alert('فشل في تحميل الصورة - البيانات قد تكون تالفة أو كبيرة جداً');
+        closeModal('imageModal');
+    };
+    
+    modalImage.onload = function() {
+        console.log('Image loaded successfully. Dimensions:', this.naturalWidth, 'x', this.naturalHeight);
+    };
+    
+    // Validate and set image source
+    try {
+        let imageSrc = '';
+        
+        if (imageData.startsWith('data:image/')) {
+            // Already a complete data URL
+            imageSrc = imageData;
+        } else if (imageData.startsWith('http')) {
+            // HTTP URL
+            imageSrc = imageData;
+        } else {
+            // Assume it's base64 without prefix
+            // Try to detect the image format
+            let imageFormat = 'png'; // default
+            
+            // JPEG starts with /9j
+            if (imageData.startsWith('/9j')) {
+                imageFormat = 'jpeg';
+            }
+            // PNG starts with iVBORw0KGgo
+            else if (imageData.startsWith('iVBORw0KGgo')) {
+                imageFormat = 'png';
+            }
+            // GIF starts with R0lGODlh or R0lGODdh
+            else if (imageData.startsWith('R0lGOD')) {
+                imageFormat = 'gif';
+            }
+            
+            imageSrc = `data:image/${imageFormat};base64,${imageData}`;
+        }
+        
+        // Validate the data URL format
+        if (imageSrc.startsWith('data:image/')) {
+            const base64Part = imageSrc.split(',')[1];
+            if (!base64Part || base64Part.length < 10) {
+                throw new Error('Invalid base64 data');
+            }
+        }
+        
+        console.log('Setting image source. Format detected:', imageSrc.substring(0, 30));
+        modalImage.src = imageSrc;
+        
+        // Show the modal
+        showModal('imageModal');
+        
+    } catch (error) {
+        console.error('Error processing image data:', error);
+        alert('خطأ في معالجة بيانات الصورة: ' + error.message);
+    }
+};
+
+// PDF Report Functions
+window.generateDeliveriesReport = async function() {
+    const clientId = getClientIdFromURL();
+    const fromDate = document.getElementById('deliveriesFromDate').value;
+    const toDate = document.getElementById('deliveriesToDate').value;
+    
+    if (!fromDate || !toDate) {
+        alert('يرجى تحديد تاريخ البداية والنهاية');
+        return;
+    }
+    
+    try {
+        const url = `${API_BASE}/clients/${clientId}/reports/deliveries?from=${fromDate}&to=${toDate}`;
+        window.open(url, '_blank');
+    } catch (error) {
+        console.error('Error generating deliveries report:', error);
+        alert('حدث خطأ في إنشاء التقرير');
+    }
+};
+
+window.generateAccountStatement = async function() {
+    const clientId = getClientIdFromURL();
+    const useCustomRange = document.getElementById('useCustomDateRange').checked;
+    
+    let fromDate, toDate;
+    
+    if (useCustomRange) {
+        fromDate = document.getElementById('statementFromDate').value;
+        toDate = document.getElementById('statementToDate').value;
+        
+        if (!fromDate || !toDate) {
+            alert('يرجى تحديد تاريخ البداية والنهاية');
+            return;
+        }
+    } else {
+        // Use all data - get first and last dates
+        fromDate = '';
+        toDate = '';
+    }
+    
+    try {
+        let url = `${API_BASE}/clients/${clientId}/reports/statement`;
+        if (fromDate && toDate) {
+            url += `?from=${fromDate}&to=${toDate}`;
+        }
+        window.open(url, '_blank');
+    } catch (error) {
+        console.error('Error generating account statement:', error);
+        alert('حدث خطأ في إنشاء كشف الحساب');
+    }
+};
+
+// Toggle date range inputs
+window.toggleDateRange = function() {
+    const checkbox = document.getElementById('useCustomDateRange');
+    const dateInputs = document.getElementById('dateRangeInputs');
+    
+    if (checkbox.checked) {
+        dateInputs.style.display = 'block';
+        // Set default dates
+        const today = new Date().toISOString().split('T')[0];
+        const firstOfYear = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+        document.getElementById('statementFromDate').value = firstOfYear;
+        document.getElementById('statementToDate').value = today;
+    } else {
+        dateInputs.style.display = 'none';
+    }
+};
+
+// Clear filter functions
+window.clearDeliveriesFilters = function() {
+    document.getElementById('deliveriesSearch').value = '';
+    document.getElementById('deliveriesDateFrom').value = '';
+    document.getElementById('deliveriesDateTo').value = '';
+    document.getElementById('deliveriesSort').value = 'date-desc';
+    filterDeliveries();
+};
+
+window.clearPaymentsFilters = function() {
+    document.getElementById('paymentsSearch').value = '';
+    document.getElementById('paymentsDateFrom').value = '';
+    document.getElementById('paymentsDateTo').value = '';
+    document.getElementById('paymentsSort').value = 'date-desc';
+    filterPayments();
+};
+
+window.clearAdjustmentsFilters = function() {
+    document.getElementById('adjustmentsSearch').value = '';
+    document.getElementById('adjustmentsDateFrom').value = '';
+    document.getElementById('adjustmentsDateTo').value = '';
+    document.getElementById('adjustmentsSort').value = 'date-desc';
+    filterAdjustments();
+};
+
+// CRUD functions for deliveries
+window.editDelivery = function(deliveryId) {
+    alert('تعديل التسليمات غير متاح حالياً لأسباب محاسبية. يرجى التواصل مع الإدارة.');
+};
+
+window.deleteDelivery = function(deliveryId) {
+    if (!confirm('هل أنت متأكد من حذف هذه التسليمة؟ تحذير: هذا سيؤثر على الحسابات المحاسبية.')) {
+        return;
+    }
+    
+    fetch(`${API_BASE}/deliveries/${deliveryId}`, {
+        method: 'DELETE'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('فشل في حذف التسليمة');
+        }
+        return response.json();
+    })
+    .then(() => {
+        alert('تم حذف التسليمة بنجاح');
+        loadClientDetails();
+    })
+    .catch(error => {
+        console.error('Error deleting delivery:', error);
+        alert('خطأ في حذف التسليمة: ' + error.message);
+    });
+};

@@ -6,77 +6,122 @@
     <title>الكسارات</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css?family=Cairo:400,700,900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../css/crushers.css">
+    <link rel="stylesheet" href="css/modern-theme.css">
+    <link rel="stylesheet" href="css/crushers.css">
+    <link rel="stylesheet" href="css/sidebar.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-
 </head>
 
 <body>
-    <!-- Hamburger menu for mobile -->
-    <button class="hamburger" id="sidebarHamburger" aria-label="القائمة الجانبية">
-        <span></span>
-    </button>
-    <!-- Sidebar navigation -->
-    <nav class="sidebar" id="sidebar">
-        <div class="app-title">نظام التوزيع</div>
-        <ul>
-            <li><a href="dashboard.html">لوحة التحكم</a></li>
-            <li><a href="clients.html">العملاء</a></li>
-            <li><a href="crushers.html" class="active">الكسارات</a></li>
-            <li><a href="contractors.html">مقاولين العجل</a></li>
-            <li><a href="new-entry.html">تسليم جديد</a></li>
-        </ul>
-        <div class="sidenav-spacer"></div>
-    </nav>
+    <div id="sidebar-placeholder"></div>
     <div class="main-content">
-        <div class="crushers-header">
-            <div class="crushers-title">الكسارات</div>
-            <button class="add-crusher-btn" id="addCrusherBtn">+ إضافة كسارة</button>
+        <div class="page-header">
+            <h1 class="page-title">إدارة الكسارات</h1>
+            <button class="btn btn-primary" id="addCrusherBtn">
+                <span>➕</span> إضافة كسارة جديدة
+            </button>
         </div>
-        <div id="crushersContainer"></div>
+        
+        <div class="content-section">
+            <div id="crushersContainer" class="crushers-grid"></div>
+        </div>
     </div>
-    <script>
-        // Hamburger menu behavior
-        const sidebar = document.getElementById('sidebar');
-        const hamburger = document.getElementById('sidebarHamburger');
-        hamburger.addEventListener('click', function () {
-            sidebar.classList.toggle('open');
-        });
-        // عند ضغط خارج القائمة الجانبية على الموبايل تُغلق تلقائيا
-        document.body.addEventListener('click', function (e) {
-            if (window.innerWidth <= 700 && sidebar.classList.contains('open')) {
-                if (!sidebar.contains(e.target) && e.target !== hamburger) {
-                    sidebar.classList.remove('open');
-                }
-            }
-        });
-        // إغلاق القائمة عند تغيير حجم الشاشة
-        window.addEventListener('resize', function () {
-            if (window.innerWidth > 700 && sidebar.classList.contains('open')) {
-                sidebar.classList.remove('open');
-            }
-        });
 
-        // زر إضافة كسارة - استخدام SweetAlert2 بدلاً من prompt/alert
-        document.getElementById('addCrusherBtn').addEventListener('click', async function () {
-            const { value: name } = await Swal.fire({ title: 'اسم الكسارة', input: 'text', inputPlaceholder: 'اسم الكسارة؟', showCancelButton: true });
-            if (!name) return;
-            try {
-                await fetch('http://localhost:5000/api/crushers', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name })
-                });
-                await Swal.fire({ icon: 'success', title: 'نجح', text: 'تم إضافة الكسارة' });
-                window.location.reload();
-            } catch (err) {
-                console.error(err);
-                Swal.fire({ icon: 'error', title: 'خطأ', text: 'تعذر إضافة الكسارة' });
-            }
-        });
-    </script>
+    <!-- Add Crusher Modal -->
+    <div id="addCrusherModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>إضافة كسارة جديدة</h2>
+                <button class="modal-close" data-action="close-modal" data-target="addCrusherModal">&times;</button>
+            </div>
+            <form id="addCrusherForm">
+                <div class="form-group">
+                    <label for="crusherName">اسم الكسارة *</label>
+                    <input type="text" id="crusherName" name="name" autocomplete="organization" required>
+                </div>
+                
+                <div class="form-section">
+                    <h3>أسعار المواد (جنيه/م³)</h3>
+                    <div class="price-grid">
+                        <div class="form-group">
+                            <label for="sandPrice">رمل</label>
+                            <input type="number" id="sandPrice" name="sand_price" step="0.01" min="0" placeholder="0.00" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label for="aggregate1Price">سن 1</label>
+                            <input type="number" id="aggregate1Price" name="aggregate1_price" step="0.01" min="0" placeholder="0.00" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label for="aggregate2Price">سن 2</label>
+                            <input type="number" id="aggregate2Price" name="aggregate2_price" step="0.01" min="0" placeholder="0.00" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label for="aggregate3Price">سن 3</label>
+                            <input type="number" id="aggregate3Price" name="aggregate3_price" step="0.01" min="0" placeholder="0.00" autocomplete="off">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" data-action="close-modal" data-target="addCrusherModal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">إضافة الكسارة</button>
+                </div>
+                <div id="addCrusherMessage"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Prices Modal -->
+    <div id="editPricesModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>تعديل أسعار المواد</h2>
+                <button class="modal-close" data-action="close-modal" data-target="editPricesModal">&times;</button>
+            </div>
+            <div class="warning-box">
+                <div class="warning-icon">⚠️</div>
+                <div class="warning-text">
+                    <strong>تنبيه مهم:</strong> تعديل الأسعار سيؤثر فقط على التسليمات الجديدة. 
+                    جميع التسليمات السابقة ستحتفظ بالأسعار التاريخية المحفوظة وقت إنشائها.
+                </div>
+            </div>
+            <form id="editPricesForm">
+                <input type="hidden" id="editCrusherId">
+                <div class="form-section">
+                    <h3 id="editCrusherName">أسعار المواد (جنيه/م³)</h3>
+                    <div class="price-grid">
+                        <div class="form-group">
+                            <label for="editSandPrice">رمل</label>
+                            <input type="number" id="editSandPrice" name="sand_price" step="0.01" min="0" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label for="editAggregate1Price">سن 1</label>
+                            <input type="number" id="editAggregate1Price" name="aggregate1_price" step="0.01" min="0" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label for="editAggregate2Price">سن 2</label>
+                            <input type="number" id="editAggregate2Price" name="aggregate2_price" step="0.01" min="0" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label for="editAggregate3Price">سن 3</label>
+                            <input type="number" id="editAggregate3Price" name="aggregate3_price" step="0.01" min="0" autocomplete="off">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" data-action="close-modal" data-target="editPricesModal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">حفظ التعديلات</button>
+                </div>
+                <div id="editPricesMessage"></div>
+            </form>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="../js/crushers.js"></script>
+    <script src="js/csp-fix.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/crushers.js"></script>
 </body>
 
 </html>

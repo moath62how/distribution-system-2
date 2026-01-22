@@ -8,28 +8,17 @@
     <link href="https://fonts.googleapis.com/css?family=Cairo:400,700,900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <link rel="stylesheet" href="/css/new-entry.css">
+    <link rel="stylesheet" href="/css/sidebar.css">
 </head>
 
 <body>
-    <!-- Hamburger menu for mobile -->
-    <button class="hamburger" id="sidebarHamburger" aria-label="القائمة الجانبية">
-        <span></span>
-    </button>
-    <!-- Sidebar navigation -->
-    <nav class="sidebar" id="sidebar">
-        <div class="app-title">نظام التوزيع</div>
-        <ul>
-            <li><a href="dashboard.html">لوحة التحكم</a></li>
-            <li><a href="clients.html">العملاء</a></li>
-            <li><a href="crushers.html">الكسارات</a></li>
-            <li><a href="contractors.html">مقاولين العجل</a></li>
-            <li><a href="new-entry.html" class="active">تسليم جديد</a></li>
-        </ul>
-        <div class="sidenav-spacer"></div>
-    </nav>
+    <div id="sidebar-placeholder"></div>
     <div class="main-content">
         <div class="page-header">إدخال تسليم جديد</div>
         <div class="new-entry-form-container">
+            <div class="form-header">
+                <button type="button" id="refreshBtn" class="refresh-btn">تحديث البيانات</button>
+            </div>
             <form id="newEntryForm" autocomplete="off" novalidate>
                 <div id="formError" class="form-error"></div>
                 <div class="form-group">
@@ -44,10 +33,9 @@
                     <select id="material" required>
                         <option value="">اختر النوع</option>
                         <option value="رمل">رمل</option>
-                        <option value="دفان">دفان</option>
-                        <option value="حصى">حصى</option>
-                        <option value="بسكورس">بسكورس</option>
-                        <option value="صبيز">صبيز</option>
+                        <option value="سن 1">سن 1</option>
+                        <option value="سن 2">سن 2</option>
+                        <option value="سن 3">سن 3</option>
                     </select>
                 </div>
 
@@ -102,8 +90,8 @@
                         background: linear-gradient(92deg, #e1ecf7 65%, #b6dbef 100%);
                         border: 2.5px dashed #247ae0;
                         border-radius: 10px;
-                        padding: 23px 18px 9px 18px;
-                        margin: 13px 0 18px 0;
+                        padding: 20px 15px 8px 15px;
+                        margin: 12px 0 15px 0;
                         box-shadow: 0 4px 12px #247ae020;
                         text-align: right;
                         position: relative;">
@@ -137,14 +125,8 @@
 
 
                     <div class="form-group">
-                        <label for="contractorCharge">مستحق مقاول النقل (اختياري)</label>
-                        <input type="number" id="contractorCharge" min="0" step="0.01" placeholder="مثال: 2500" />
-                    </div>
-
-                    <div class="form-group">
-                        <label for="total">الإجمالي</label>
-                        <input type="text" id="total" readonly
-                            style="background:#eaf2fa;color:#1c546b;font-weight:600;" />
+                        <label for="contractorCharge">مستحق مشال لكل م³</label>
+                        <input type="number" id="contractorCharge" min="0" step="0.01" />
                     </div>
 
                     <button type="submit" class="save-btn">حفظ البيانات</button>
@@ -152,30 +134,12 @@
         </div>
     </div>
     <script src="/env.js"></script>
+    <script src="/js/sidebar.js"></script>
     <script>
         const API_BASE = (function () {
             if (window.__API_BASE__) return window.__API_BASE__;
             try { const origin = window.location.origin; if (!origin || origin === 'null') return 'http://localhost:5000/api'; return origin.replace(/\/$/, '') + '/api'; } catch (e) { return 'http://localhost:5000/api'; }
         })();
-
-        // Hamburger menu behavior
-        const sidebar = document.getElementById('sidebar');
-        const hamburger = document.getElementById('sidebarHamburger');
-        hamburger.addEventListener('click', function () {
-            sidebar.classList.toggle('open');
-        });
-        document.body.addEventListener('click', function (e) {
-            if (window.innerWidth <= 700 && sidebar.classList.contains('open')) {
-                if (!sidebar.contains(e.target) && e.target !== hamburger) {
-                    sidebar.classList.remove('open');
-                }
-            }
-        });
-        window.addEventListener('resize', function () {
-            if (window.innerWidth > 700 && sidebar.classList.contains('open')) {
-                sidebar.classList.remove('open');
-            }
-        });
 
         async function populateSelect(id, data, placeholder) {
             const select = document.getElementById(id);
@@ -184,6 +148,10 @@
             defaultOpt.value = '';
             defaultOpt.textContent = placeholder;
             select.appendChild(defaultOpt);
+            if (!data || !Array.isArray(data)) {
+                console.error('Invalid data for populateSelect:', data);
+                return;
+            }
             data.forEach(item => {
                 const opt = document.createElement('option');
                 opt.value = item.id;
@@ -195,11 +163,11 @@
         async function loadDropdowns() {
             try {
                 const [clients, crushers, contractors] = await Promise.all([
-                    fetch(`${API_BASE}/clients`).then(r => r.json()),
-                    fetch(`${API_BASE}/crushers`).then(r => r.json()),
-                    fetch(`${API_BASE}/contractors`).then(r => r.json())
+                    fetch(`${API_BASE}/clients`, { cache: 'no-cache' }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+                    fetch(`${API_BASE}/crushers`, { cache: 'no-cache' }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+                    fetch(`${API_BASE}/contractors`, { cache: 'no-cache' }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
                 ]);
-                populateSelect('client', clients, 'اختر العميل');
+                populateSelect('client', clients.data, 'اختر العميل');
                 populateSelect('crusher', crushers, 'اختر الكسارة');
                 populateSelect('wheelContractor', contractors, 'اختر المقاول');
             } catch (err) {
@@ -219,7 +187,6 @@
                 deductAmountField.style.display = '';
                 document.getElementById('deductAmount').required = true;
             }
-            calcTotal();
         });
         discountNo.addEventListener('change', () => {
             if (discountNo.checked) {
@@ -228,24 +195,7 @@
                 d.required = false;
                 d.value = "";
             }
-            calcTotal();
         });
-
-        // Auto-calculate total (net quantity * price)
-        function calcTotal() {
-            const q = parseFloat(document.getElementById('quantity').value);
-            const p = parseFloat(document.getElementById('price').value);
-            const deduct = discountYes.checked ? parseFloat(document.getElementById('deductAmount').value) || 0 : 0;
-            let total = 0;
-            if (!isNaN(q) && !isNaN(p)) {
-                const net = Math.max(q - Math.max(deduct, 0), 0);
-                total = net * p;
-            }
-            document.getElementById('total').value = (total > 0 ? total.toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '');
-        }
-        document.getElementById('quantity').addEventListener('input', calcTotal);
-        document.getElementById('price').addEventListener('input', calcTotal);
-        document.getElementById('deductAmount').addEventListener('input', calcTotal);
 
         // Form submission
         document.getElementById('newEntryForm').addEventListener('submit', async function (e) {
@@ -284,11 +234,6 @@
                 }
             }
 
-            const totalVal = document.getElementById('total').value;
-            if (!totalVal || isNaN(parseFloat(totalVal.replace(/,/g, ''))) || parseFloat(totalVal.replace(/,/g, '')) < 0) {
-                valid = false;
-                err = "الإجمالي غير صالح";
-            }
             const errorDiv = document.getElementById('formError');
             if (!valid) {
                 errorDiv.textContent = err;
@@ -310,7 +255,7 @@
                 car_head: document.getElementById('carHead').value,
                 car_tail: document.getElementById('carTail').value,
                 car_volume: parseFloat(document.getElementById('carVolume').value) || null,
-                contractor_charge: parseFloat(document.getElementById('contractorCharge').value) || 0
+                contractor_charge_per_meter: parseFloat(document.getElementById('contractorCharge').value) || 0
             };
 
             try {
@@ -329,8 +274,17 @@
                     text: 'تم حفظ التسليم بنجاح',
                     confirmButtonText: 'حسناً'
                 });
+                // Reset form but preserve dropdown selections
+                const preservedValues = {
+                    client: document.getElementById('client').value,
+                    crusher: document.getElementById('crusher').value,
+                    wheelContractor: document.getElementById('wheelContractor').value
+                };
                 this.reset();
-                document.getElementById('total').value = '';
+                // Restore preserved values
+                document.getElementById('client').value = preservedValues.client;
+                document.getElementById('crusher').value = preservedValues.crusher;
+                document.getElementById('wheelContractor').value = preservedValues.wheelContractor;
                 deductAmountField.style.display = 'none';
                 document.getElementById('deductAmount').required = false;
             } catch (errResp) {
@@ -342,6 +296,16 @@
         });
 
         loadDropdowns();
+
+        // Refresh button
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            loadDropdowns();
+        });
+
+        // Auto refresh dropdowns every 30 seconds
+        setInterval(() => {
+            loadDropdowns();
+        }, 30000);
     </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>

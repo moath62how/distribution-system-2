@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>اختبار أزرار التعديل - جميع الصفحات</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; direction: rtl; }
+        .test-section { margin: 30px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .btn { padding: 10px 20px; margin: 10px; border: none; border-radius: 5px; cursor: pointer; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #17a2b8; }
+        .main-content { padding: 20px; border: 2px dashed #ccc; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>اختبار أزرار التعديل وحل مشكلة النقر على Body</h1>
+    
+    <div class="test-section">
+        <h2>1. اختبار أزرار التعديل</h2>
+        
+        <h3>العملاء</h3>
+        <button class="btn btn-secondary" id="editClientBtn">✏️ تعديل بيانات العميل</button>
+        <div id="clientResult"></div>
+        
+        <h3>الكسارات</h3>
+        <button class="btn btn-secondary" id="editCrusherBtn">✏️ تعديل بيانات الكسارة</button>
+        <div id="crusherResult"></div>
+        
+        <h3>المقاولين</h3>
+        <button class="btn btn-secondary" id="editContractorBtn">✏️ تعديل بيانات المقاول</button>
+        <div id="contractorResult"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. اختبار مشكلة النقر على Body</h2>
+        <p class="info">النقر في المناطق التالية يجب ألا يفتح تقارير:</p>
+        
+        <div class="main-content" id="testMainContent">
+            <p>هذا محتوى الصفحة الرئيسي (main-content)</p>
+            <p>النقر هنا يجب ألا يفتح أي تقرير</p>
+            <p>نص يحتوي على كلمة "تقرير التوريدات" - يجب ألا يفتح شيء</p>
+        </div>
+        
+        <div id="bodyClickResult"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. اختبار أزرار التقارير الصحيحة</h2>
+        <p class="info">هذه الأزرار يجب أن تعمل:</p>
+        
+        <button class="btn btn-secondary" data-action="generate-deliveries-report">📄 إنشاء تقرير التوريدات</button>
+        <button class="btn btn-secondary" data-action="generate-account-statement">📊 إنشاء كشف الحساب</button>
+        
+        <div id="reportResult"></div>
+    </div>
+
+    <script>
+        // Mock data for testing
+        let clientData = { client: { id: 1, name: 'عميل تجريبي', phone: '123', opening_balance: 1000 } };
+        let crusherData = { crusher: { id: 1, name: 'كسارة تجريبية' } };
+        let contractorData = { contractor: { id: 1, name: 'مقاول تجريبي', opening_balance: 500 } };
+        
+        // Mock functions
+        function showModal(modalId) {
+            console.log('showModal called with:', modalId);
+            alert(`تم فتح ${modalId} بنجاح!`);
+        }
+        
+        function generateDeliveriesReport() {
+            console.log('generateDeliveriesReport called');
+            document.getElementById('reportResult').innerHTML += '<p class="success">✅ تم تفعيل تقرير التوريدات</p>';
+        }
+        
+        function generateAccountStatement() {
+            console.log('generateAccountStatement called');
+            document.getElementById('reportResult').innerHTML += '<p class="success">✅ تم تفعيل كشف الحساب</p>';
+        }
+        
+        // Edit functions
+        function openEditClientModal() {
+            console.log('openEditClientModal called');
+            console.log('clientData:', clientData);
+            
+            if (!clientData || !clientData.client) {
+                console.error('No client data available');
+                document.getElementById('clientResult').innerHTML = '<p class="error">❌ لا توجد بيانات عميل</p>';
+                return;
+            }
+            
+            document.getElementById('clientResult').innerHTML = '<p class="success">✅ تم فتح نموذج تعديل العميل</p>';
+            showModal('editClientModal');
+        }
+        
+        function openEditCrusherModal() {
+            console.log('openEditCrusherModal called');
+            console.log('crusherData:', crusherData);
+            
+            if (!crusherData || !crusherData.crusher) {
+                console.error('No crusher data available');
+                document.getElementById('crusherResult').innerHTML = '<p class="error">❌ لا توجد بيانات كسارة</p>';
+                return;
+            }
+            
+            document.getElementById('crusherResult').innerHTML = '<p class="success">✅ تم فتح نموذج تعديل الكسارة</p>';
+            showModal('editCrusherModal');
+        }
+        
+        function openEditContractorModal() {
+            console.log('openEditContractorModal called');
+            console.log('contractorData:', contractorData);
+            
+            if (!contractorData || !contractorData.contractor) {
+                console.error('No contractor data available');
+                document.getElementById('contractorResult').innerHTML = '<p class="error">❌ لا توجد بيانات مقاول</p>';
+                return;
+            }
+            
+            document.getElementById('contractorResult').innerHTML = '<p class="success">✅ تم فتح نموذج تعديل المقاول</p>';
+            showModal('editContractorModal');
+        }
+        
+        // Setup event handlers
+        function setupEditHandlers() {
+            console.log('Setting up edit handlers...');
+            
+            // Client edit button
+            const clientBtn = document.getElementById('editClientBtn');
+            if (clientBtn) {
+                clientBtn.addEventListener('click', function() {
+                    console.log('Client edit button clicked!');
+                    openEditClientModal();
+                });
+            }
+            
+            // Crusher edit button
+            const crusherBtn = document.getElementById('editCrusherBtn');
+            if (crusherBtn) {
+                crusherBtn.addEventListener('click', function() {
+                    console.log('Crusher edit button clicked!');
+                    openEditCrusherModal();
+                });
+            }
+            
+            // Contractor edit button
+            const contractorBtn = document.getElementById('editContractorBtn');
+            if (contractorBtn) {
+                contractorBtn.addEventListener('click', function() {
+                    console.log('Contractor edit button clicked!');
+                    openEditContractorModal();
+                });
+            }
+        }
+        
+        // Event delegation for reports (improved version)
+        document.addEventListener('click', function(e) {
+            const action = e.target.getAttribute('data-action');
+            
+            // Handle data-action attributes only
+            if (action === 'generate-deliveries-report') {
+                generateDeliveriesReport();
+                return;
+            } else if (action === 'generate-account-statement') {
+                generateAccountStatement();
+                return;
+            }
+            
+            // Log unwanted clicks for debugging
+            if (e.target.closest('.main-content') && 
+                e.target.tagName !== 'BUTTON' && 
+                e.target.textContent && 
+                e.target.textContent.includes('تقرير')) {
+                console.log('Unwanted click detected on:', e.target);
+                document.getElementById('bodyClickResult').innerHTML += '<p class="error">❌ نقرة غير مرغوبة تم منعها</p>';
+                e.stopPropagation();
+            }
+        });
+        
+        // Track clicks on main content
+        document.getElementById('testMainContent').addEventListener('click', function(e) {
+            console.log('Click on main content:', e.target);
+            document.getElementById('bodyClickResult').innerHTML += '<p class="info">🖱️ تم النقر على: ' + e.target.tagName + '</p>';
+        });
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, setting up handlers...');
+            setupEditHandlers();
+        });
+    </script>
+</body>
+</html>

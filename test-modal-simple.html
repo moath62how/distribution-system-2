@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>اختبار Modal</title>
+    <link rel="stylesheet" href="backend/public/css/modern-theme.css">
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; direction: rtl; }
+        .btn { padding: 10px 20px; margin: 10px; border: none; border-radius: 5px; cursor: pointer; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>اختبار Modal التعديل</h1>
+    
+    <div class="test-section">
+        <button class="btn btn-secondary" onclick="testShowModal()">
+            ✏️ اختبار فتح Modal
+        </button>
+        
+        <button class="btn btn-secondary" onclick="testHideModal()">
+            ❌ اختبار إغلاق Modal
+        </button>
+    </div>
+    
+    <!-- Test Modal -->
+    <div id="testModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>تعديل بيانات العميل</h2>
+                <button class="modal-close" onclick="testHideModal()">&times;</button>
+            </div>
+            <form>
+                <div class="form-group">
+                    <label for="testName">اسم العميل *</label>
+                    <input type="text" id="testName" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="testPhone">رقم الهاتف</label>
+                    <input type="tel" id="testPhone" name="phone">
+                </div>
+                <div class="form-group">
+                    <label for="testBalance">الرصيد الافتتاحي</label>
+                    <input type="number" id="testBalance" name="opening_balance" step="0.01">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" onclick="testHideModal()">إلغاء</button>
+                    <button type="submit">حفظ التعديلات</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function testShowModal() {
+            console.log('Showing test modal...');
+            const modal = document.getElementById('testModal');
+            console.log('Modal element:', modal);
+            
+            if (modal) {
+                modal.classList.add('active');
+                modal.style.display = 'flex';
+                console.log('Modal should be visible now');
+            } else {
+                console.error('Modal not found!');
+            }
+        }
+        
+        function testHideModal() {
+            console.log('Hiding test modal...');
+            const modal = document.getElementById('testModal');
+            
+            if (modal) {
+                modal.classList.remove('active');
+                modal.style.display = 'none';
+                console.log('Modal hidden');
+            }
+        }
+    </script>
+</body>
+</html>

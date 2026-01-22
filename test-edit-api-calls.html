@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>اختبار API للتعديل</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        .btn { 
+            padding: 10px 20px; 
+            margin: 5px; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+        }
+        .btn:hover { background: #0056b3; }
+        #results { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>اختبار API للتعديل</h1>
+    
+    <div class="test-section">
+        <h2>المشكلة المبلغ عنها:</h2>
+        <p class="error">❌ التعديلات لا تظهر في كشوف الحساب والتقارير</p>
+        <p class="info">ℹ️ المودال يفتح ويُغلق بشكل صحيح، لكن البيانات لا تُحفظ</p>
+    </div>
+    
+    <div class="test-section">
+        <h2>اختبار API للعملاء:</h2>
+        <button class="btn" onclick="testUpdateClient()">اختبار تحديث عميل</button>
+        <button class="btn" onclick="testGetClient()">اختبار جلب بيانات عميل</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>اختبار API للمقاولين:</h2>
+        <button class="btn" onclick="testUpdateContractor()">اختبار تحديث مقاول</button>
+        <button class="btn" onclick="testGetContractor()">اختبار جلب بيانات مقاول</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>اختبار API للكسارات:</h2>
+        <button class="btn" onclick="testUpdateCrusher()">اختبار تحديث كسارة</button>
+        <button class="btn" onclick="testGetCrusher()">اختبار جلب بيانات كسارة</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>النتائج:</h2>
+        <div id="results">انقر على أي زر أعلاه لبدء الاختبار...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>الحلول المحتملة:</h2>
+        <ul>
+            <li class="info">تحقق من أن السيرفر يعمل على المنفذ الصحيح</li>
+            <li class="info">تحقق من أن قاعدة البيانات متصلة</li>
+            <li class="info">تحقق من console للأخطاء</li>
+            <li class="info">تحقق من Network tab في Developer Tools</li>
+        </ul>
+    </div>
+
+    <script>
+        const API_BASE = (function () {
+            try {
+                const origin = window.location.origin;
+                if (!origin || origin === 'null') return 'http://localhost:5000/api';
+                return origin.replace(/\/$/, '') + '/api';
+            } catch (e) {
+                return 'http://localhost:5000/api';
+            }
+        })();
+        
+        function log(message) {
+            const results = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            results.textContent += `[${timestamp}] ${message}\n`;
+            console.log(message);
+        }
+        
+        function clearLog() {
+            document.getElementById('results').textContent = '';
+        }
+        
+        async function testUpdateClient() {
+            clearLog();
+            log('🧪 اختبار تحديث العميل...');
+            log(`API Base: ${API_BASE}`);
+            
+            const clientId = 1; // افتراض أن العميل رقم 1 موجود
+            const testData = {
+                name: 'عميل تجريبي - ' + new Date().getTime(),
+                phone: '01234567890',
+                opening_balance: 1500
+            };
+            
+            try {
+                log(`📤 إرسال PUT إلى: ${API_BASE}/clients/${clientId}`);
+                log(`📦 البيانات: ${JSON.stringify(testData, null, 2)}`);
+                
+                const response = await fetch(`${API_BASE}/clients/${clientId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                log(`📥 استجابة HTTP: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    log(`❌ خطأ في الاستجابة: ${errorText}`);
+                    return;
+                }
+                
+                const result = await response.json();
+                log(`✅ نجح التحديث!`);
+                log(`📋 البيانات المحدثة: ${JSON.stringify(result, null, 2)}`);
+                
+            } catch (error) {
+                log(`❌ خطأ في الشبكة: ${error.message}`);
+                log(`🔍 تفاصيل الخطأ: ${error.stack}`);
+            }
+        }
+        
+        async function testGetClient() {
+            clearLog();
+            log('🧪 اختبار جلب بيانات العميل...');
+            
+            const clientId = 1;
+            
+            try {
+                log(`📤 إرسال GET إلى: ${API_BASE}/clients/${clientId}`);
+                
+                const response = await fetch(`${API_BASE}/clients/${clientId}`);
+                
+                log(`📥 استجابة HTTP: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    log(`❌ خطأ في الاستجابة: ${errorText}`);
+                    return;
+                }
+                
+                const result = await response.json();
+                log(`✅ نجح جلب البيانات!`);
+                log(`📋 بيانات العميل: ${JSON.stringify(result, null, 2)}`);
+                
+            } catch (error) {
+                log(`❌ خطأ في الشبكة: ${error.message}`);
+            }
+        }
+        
+        async function testUpdateContractor() {
+            clearLog();
+            log('🧪 اختبار تحديث المقاول...');
+            
+            const contractorId = 1;
+            const testData = {
+                name: 'مقاول تجريبي - ' + new Date().getTime(),
+                opening_balance: 2000
+            };
+            
+            try {
+                log(`📤 إرسال PUT إلى: ${API_BASE}/contractors/${contractorId}`);
+                log(`📦 البيانات: ${JSON.stringify(testData, null, 2)}`);
+                
+                const response = await fetch(`${API_BASE}/contractors/${contractorId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                log(`📥 استجابة HTTP: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    log(`❌ خطأ في الاستجابة: ${errorText}`);
+                    return;
+                }
+                
+                const result = await response.json();
+                log(`✅ نجح التحديث!`);
+                log(`📋 البيانات المحدثة: ${JSON.stringify(result, null, 2)}`);
+                
+            } catch (error) {
+                log(`❌ خطأ في الشبكة: ${error.message}`);
+            }
+        }
+        
+        async function testGetContractor() {
+            clearLog();
+            log('🧪 اختبار جلب بيانات المقاول...');
+            
+            const contractorId = 1;
+            
+            try {
+                log(`📤 إرسال GET إلى: ${API_BASE}/contractors/${contractorId}`);
+                
+                const response = await fetch(`${API_BASE}/contractors/${contractorId}`);
+                
+                log(`📥 استجابة HTTP: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    log(`❌ خطأ في الاستجابة: ${errorText}`);
+                    return;
+                }
+                
+                const result = await response.json();
+                log(`✅ نجح جلب البيانات!`);
+                log(`📋 بيانات المقاول: ${JSON.stringify(result, null, 2)}`);
+                
+            } catch (error) {
+                log(`❌ خطأ في الشبكة: ${error.message}`);
+            }
+        }
+        
+        async function testUpdateCrusher() {
+            clearLog();
+            log('🧪 اختبار تحديث الكسارة...');
+            
+            const crusherId = 1;
+            const testData = {
+                name: 'كسارة تجريبية - ' + new Date().getTime()
+            };
+            
+            try {
+                log(`📤 إرسال PUT إلى: ${API_BASE}/crushers/${crusherId}`);
+                log(`📦 البيانات: ${JSON.stringify(testData, null, 2)}`);
+                
+                const response = await fetch(`${API_BASE}/crushers/${crusherId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                log(`📥 استجابة HTTP: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    log(`❌ خطأ في الاستجابة: ${errorText}`);
+                    return;
+                }
+                
+                const result = await response.json();
+                log(`✅ نجح التحديث!`);
+                log(`📋 البيانات المحدثة: ${JSON.stringify(result, null, 2)}`);
+                
+            } catch (error) {
+                log(`❌ خطأ في الشبكة: ${error.message}`);
+            }
+        }
+        
+        async function testGetCrusher() {
+            clearLog();
+            log('🧪 اختبار جلب بيانات الكسارة...');
+            
+            const crusherId = 1;
+            
+            try {
+                log(`📤 إرسال GET إلى: ${API_BASE}/crushers/${crusherId}`);
+                
+                const response = await fetch(`${API_BASE}/crushers/${crusherId}`);
+                
+                log(`📥 استجابة HTTP: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    log(`❌ خطأ في الاستجابة: ${errorText}`);
+                    return;
+                }
+                
+                const result = await response.json();
+                log(`✅ نجح جلب البيانات!`);
+                log(`📋 بيانات الكسارة: ${JSON.stringify(result, null, 2)}`);
+                
+            } catch (error) {
+                log(`❌ خطأ في الشبكة: ${error.message}`);
+            }
+        }
+        
+        // Test on page load
+        window.addEventListener('load', () => {
+            log('🚀 صفحة الاختبار جاهزة');
+            log(`🌐 API Base URL: ${API_BASE}`);
+            log('💡 انقر على الأزرار أعلاه لاختبار API');
+        });
+    </script>
+</body>
+</html>

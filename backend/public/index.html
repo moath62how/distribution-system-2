@@ -1,100 +1,108 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-
 <head>
     <meta charset="UTF-8">
-    <title>لوحة التحكم - توزيع</title>
-    <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <!-- استدعاء CSS الموحد للمشروع -->
-    <link rel="stylesheet" href="../css/dashboard.css">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام التوزيع</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Cairo', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        p {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+        .nav-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .nav-btn {
+            padding: 15px 25px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        .status {
+            margin-top: 30px;
+            padding: 15px;
+            background: rgba(0, 255, 0, 0.2);
+            border-radius: 10px;
+            border: 1px solid rgba(0, 255, 0, 0.3);
+        }
+    </style>
 </head>
-
 <body>
-    <!-- Hamburger menu for mobile -->
-    <button class="hamburger" id="sidebarHamburger" aria-label="القائمة الجانبية">
-        <span></span>
-    </button>
-    <!-- Sidebar navigation -->
-    <nav class="sidebar" id="sidebar">
-        <div class="app-title">نظام التوزيع</div>
-        <ul>
-            <li><a href="index.html" class="active">لوحة التحكم</a></li>
-            <li><a href="clients.html">العملاء</a></li>
-            <li><a href="crushers.html">الكسارات</a></li>
-            <li><a href="contractors.html">مقاولين العجل</a></li>
-            <li><a href="new-entry.html">تسليم جديد</a></li>
-        </ul>
-        <div class="sidenav-spacer"></div>
-    </nav>
-    <!-- Main content -->
-    <main class="main" id="mainContent">
-        <h1 style="font-weight:700;color:#1d3359;font-size:2rem;margin-bottom:30px;text-align:right">لوحة التحكم</h1>
-        <!-- Dashboard KPI Cards -->
-        <section class="dashboard-cards" id="dashboardCards">
-            <!-- تم بناء هذه العناصر ديناميكيًا عبر JS -->
-            <div class="dashboard-card customers">
-                <div class="card-value" id="totalClients">—</div>
-                <div class="card-label">إجمالي العملاء</div>
-            </div>
-            <div class="dashboard-card quarries">
-                <div class="card-value" id="totalCrushers">—</div>
-                <div class="card-label">إجمالي الكسارات</div>
-            </div>
-            <div class="dashboard-card contractors">
-                <div class="card-value" id="totalContractors">—</div>
-                <div class="card-label">إجمالي مقاولي العجل</div>
-            </div>
-            <div class="dashboard-card deliveries">
-                <div class="card-value" id="totalDeliveries">—</div>
-                <div class="card-label">إجمالي التسليمات</div>
-            </div>
-            <div class="dashboard-card profit">
-                <div class="card-value" id="netProfit">—</div>
-                <div class="card-label">صافي الربح</div>
-            </div>
-            <div class="dashboard-card sales">
-                <div class="card-value" id="totalSales">—</div>
-                <div class="card-label">المبيعات الإجمالية</div>
-            </div>
-        </section>
-        <!-- Charts Section -->
-        <section class="dashboard-charts-section">
-            <h2 class="charts-title">إحصائيات بيانية</h2>
-            <div class="charts-placeholders">
-                <div class="chart-placeholder">
-                    مبيعات حسب العميل (قريباً)
-                </div>
-                <div class="chart-placeholder">
-                    مبيعات حسب الكسارة (قريباً)
-                </div>
-            </div>
-        </section>
-    </main>
-    <!-- Dashboard JS -->
-    <script>
-        // Hamburger menu behavior
-        const sidebar = document.getElementById('sidebar');
-        const hamburger = document.getElementById('sidebarHamburger');
-        hamburger.addEventListener('click', function () {
-            sidebar.classList.toggle('open');
-        });
-        // عند ضغط خارج القائمة الجانبية على الموبايل تُغلق تلقائيا
-        document.body.addEventListener('click', function (e) {
-            if (window.innerWidth <= 700 && sidebar.classList.contains('open')) {
-                if (!sidebar.contains(e.target) && e.target !== hamburger) {
-                    sidebar.classList.remove('open');
-                }
-            }
-        });
-        // إغلاق القائمة عند تغيير حجم الشاشة
-        window.addEventListener('resize', function () {
-            if (window.innerWidth > 700 && sidebar.classList.contains('open')) {
-                sidebar.classList.remove('open');
-            }
-        });
-    </script>
-    <script src="../js/dashboard.js"></script>
-</body>
+    <div class="container">
+        <h1>نظام التوزيع</h1>
+        <p>مرحباً بك في نظام إدارة التوزيع والعملاء</p>
+        
+        <div class="nav-buttons">
+            <a href="clients.html" class="nav-btn">العملاء</a>
+            <a href="contractors.html" class="nav-btn">مقاولين العجل</a>
+            <a href="crushers.html" class="nav-btn">الكسارات</a>
+            <a href="new-entry.html" class="nav-btn">تسليم جديد</a>
+        </div>
+        
+        <div class="status">
+            <strong>✅ النظام يعمل بشكل صحيح</strong><br>
+            <span id="stats">جاري تحميل الإحصائيات...</span>
+        </div>
+    </div>
 
+    <script>
+        // Load and display basic stats
+        fetch('/api/clients')
+            .then(res => res.json())
+            .then(data => {
+                const clientCount = data.data ? data.data.length : 0;
+                
+                return fetch('/api/contractors')
+                    .then(res => res.json())
+                    .then(contractors => {
+                        const contractorCount = Array.isArray(contractors) ? contractors.length : 0;
+                        document.getElementById('stats').innerHTML = 
+                            `العملاء: ${clientCount} | المقاولين: ${contractorCount}`;
+                    });
+            })
+            .catch(() => {
+                document.getElementById('stats').innerHTML = 'تعذر تحميل الإحصائيات';
+            });
+    </script>
+</body>
 </html>

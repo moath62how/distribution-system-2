@@ -1,378 +1,589 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-
 <head>
     <meta charset="UTF-8">
     <title>تفاصيل الكسارة</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://fonts.googleapis.com/css?family=Cairo:400,700,900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/modern-theme.css">
+    <link rel="stylesheet" href="css/sidebar.css">
     <style>
-        body {
-            font-family: 'Cairo', Arial, sans-serif;
-            background: #f6f7fb;
-            color: #232323;
-            margin: 0;
-            padding: 0;
-            direction: rtl;
-        }
-
-        .sidebar {
-            position: fixed;
-            top: 0;
-            right: 0;
-            width: 225px;
-            height: 100vh;
-            background: #1f365c;
-            color: #fff;
-            box-shadow: -2px 0 16px #0001;
-            display: flex;
-            flex-direction: column;
-            z-index: 300;
-            transition: right 0.25s;
-        }
-
-        .sidebar .app-title {
-            font-size: 1.38rem;
-            font-weight: 700;
-            text-align: center;
-            margin: 23px 0 28px 0;
-            letter-spacing: 1px;
-        }
-
-        .sidebar ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            flex: 1;
-        }
-
-        .sidebar a {
-            display: block;
-            color: #e4e9f6;
-            text-decoration: none;
-            font-size: 1.07rem;
-            padding: 15px 29px;
-            border-right: 4px solid transparent;
-            transition: background 0.13s, color 0.13s, border-color 0.13s;
-            font-weight: 500;
-        }
-
-        .sidebar a.active,
-        .sidebar a:focus {
-            background: #284b71;
-            color: #fff;
-            border-right: 4px solid #3e82dc;
-        }
-
-        .sidebar a:hover {
-            background: #27406b;
-            color: #f5faff;
-        }
-
-        .sidebar .sidenav-spacer {
-            flex: 1;
-        }
-
-        .hamburger {
-            display: none;
-            position: fixed;
-            right: 16px;
-            top: 14px;
-            width: 40px;
-            height: 40px;
-            z-index: 310;
-            background: #1f365c;
-            border-radius: 7px;
-            cursor: pointer;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 7px #18518c17;
-        }
-
-        .hamburger span,
-        .hamburger span:before,
-        .hamburger span:after {
-            display: block;
-            width: 24px;
-            height: 3.3px;
-            background: #fff;
-            border-radius: 2px;
-            position: absolute;
-        }
-
-        .hamburger span {
-            position: relative;
-        }
-
-        .hamburger span:before {
-            content: "";
-            position: absolute;
-            top: -8px;
-        }
-
-        .hamburger span:after {
-            content: "";
-            position: absolute;
-            top: 8px;
-        }
-
-        @media (max-width: 900px) {
-            .sidebar {
-                width: 190px;
-            }
-        }
-
-        @media (max-width: 700px) {
-            .sidebar {
-                right: -210px;
-                width: 180px;
-                box-shadow: none;
-            }
-
-            .sidebar.open {
-                right: 0;
-                box-shadow: -2px 0 14px #0003;
-            }
-
-            .hamburger {
-                display: flex;
-            }
-        }
-
         .main-content {
             margin-right: 225px;
-            padding: 32px 18px 24px 18px;
+            padding: var(--space-8);
             transition: margin-right 0.25s;
         }
-
+        
         @media (max-width: 900px) {
-            .main-content {
-                margin-right: 190px;
-            }
+            .main-content { margin-right: 190px; }
         }
-
+        
         @media (max-width: 700px) {
-            .main-content {
-                margin-right: 0;
-                padding: 18px 3vw;
-            }
+            .main-content { margin-right: 0; padding: var(--space-4); }
         }
-
+        
         .page-header {
+            margin-bottom: var(--space-8);
+        }
+        
+        .page-title {
             font-size: 2rem;
-            font-weight: 800;
-            color: #1b3c66;
-            margin-bottom: 14px;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: var(--space-2);
         }
-
-        .section {
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 1px 10px #28527a12;
-            padding: 16px 12px;
-            margin-bottom: 16px;
+        
+        .summary-card {
+            background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%);
+            color: white;
+            border-radius: var(--radius-xl);
+            padding: var(--space-8);
+            margin-bottom: var(--space-8);
+            box-shadow: var(--shadow-lg);
         }
-
-        .section h3 {
-            margin: 0 0 12px 0;
-            color: #24406e;
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-6);
+            margin-top: var(--space-6);
         }
-
-        .detail-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 8px;
-            font-size: 1rem;
-            background: #fcfcff;
-        }
-
-        .detail-table th,
-        .detail-table td {
-            border: 1px solid #dbeafe;
-            padding: 9px 10px;
+        
+        .summary-item {
             text-align: center;
         }
-
-        .detail-table th {
-            background: #e8f1ff;
-            font-weight: 600;
-        }
-
-        .summary-card {
-            background: #fff;
-            border-radius: 14px;
-            box-shadow: 0 2px 14px #28527a12;
-            padding: 16px 18px;
-            margin-bottom: 18px;
-        }
-
-        .summary-card table {
-            width: 100%;
-        }
-
-        .summary-card td {
-            padding: 8px 10px;
-        }
-
-        .balance-row td {
-            color: #174886;
+        
+        .summary-value {
+            font-size: 1.5rem;
             font-weight: 700;
+            margin-bottom: var(--space-2);
+        }
+        
+        .summary-label {
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+        
+        .section {
+            background: white;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--gray-200);
+            margin-bottom: var(--space-6);
+            overflow: hidden;
+        }
+        
+        .section-header {
+            padding: var(--space-6);
+            border-bottom: 1px solid var(--gray-200);
+            background: var(--gray-50);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--gray-900);
+            margin: 0;
+        }
+        
+        .section-content {
+            padding: var(--space-6);
+        }
+        
+        .materials-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-4);
+        }
+        
+        .material-card {
+            background: linear-gradient(135deg, var(--success-500) 0%, var(--success-600) 100%);
+            color: white;
+            padding: var(--space-6);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
+            transition: transform 0.2s ease;
+        }
+        
+        .material-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .material-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: var(--space-4);
+        }
+        
+        .material-stat {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: var(--space-2);
+            font-size: 0.875rem;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: var(--space-12);
+            color: var(--gray-500);
+        }
+        
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: var(--space-4);
+        }
+        
+        .controls {
+            flex-direction: row;
+            display: flex;
+            gap: var(--space-4);
+            margin-bottom: var(--space-6);
+        }
+        
+        .search-input {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .settlement-summary {
+            background: var(--gray-50);
+            border-radius: var(--radius);
+            padding: var(--space-4);
+            margin-bottom: var(--space-6);
+            border: 1px solid var(--gray-200);
+        }
+        
+        .settlement-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: var(--space-4);
+            text-align: center;
+        }
+        
+        .settlement-item {
+            padding: var(--space-3);
+            background: white;
+            border-radius: var(--radius);
+            border: 1px solid var(--gray-200);
+        }
+        
+        .settlement-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: var(--space-1);
+        }
+        
+        .settlement-label {
+            font-size: 0.75rem;
+            color: var(--gray-600);
+        }
+        
+        /* Material Prices Styles */
+        .prices-display-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        .price-display-item {
+            background: var(--gray-50);
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius);
+            padding: 1rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .price-display-item:hover {
+            background: var(--gray-100);
+            transform: translateY(-2px);
+        }
+        
+        .price-material-name {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-bottom: 0.5rem;
+        }
+        
+        .price-material-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--success-600);
+        }
+        
+        .price-material-value.not-set {
+            color: var(--gray-400);
+            font-style: italic;
+        }
+        
+        .prices-edit-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .warning-box {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 1rem;
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: var(--radius);
+            margin-bottom: 1rem;
+        }
+        
+        .warning-icon {
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+        
+        .warning-text {
+            color: #856404;
+            line-height: 1.5;
+        }
+        
+        .warning-text strong {
+            color: #533f03;
         }
     </style>
 </head>
-
 <body>
-    <button class="hamburger" id="sidebarHamburger" aria-label="القائمة الجانبية">
-        <span></span>
-    </button>
-    <nav class="sidebar" id="sidebar">
-        <div class="app-title">نظام التوزيع</div>
-        <ul>
-            <li><a href="dashboard.html">لوحة التحكم</a></li>
-            <li><a href="clients.html">العملاء</a></li>
-            <li><a href="crushers.html" class="active">الكسارات</a></li>
-            <li><a href="contractors.html">مقاولين العجل</a></li>
-            <li><a href="new-entry.html">تسليم جديد</a></li>
-        </ul>
-        <div class="sidenav-spacer"></div>
-    </nav>
+    <div id="sidebar-placeholder"></div>
+    
     <div class="main-content">
-        <div class="page-header" id="crusherName">الكسارة</div>
-        <div class="summary-card" id="summaryCard"></div>
-
-        <div class="section">
-            <h3>التسليمات</h3>
-            <table class="detail-table" id="deliveriesTable"></table>
+        <div class="page-header">
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <h1 class="page-title" id="crusherName">تفاصيل الكسارة</h1>
+                <button class="btn btn-secondary" id="editCrusherBtn" style="margin-right: auto;">
+                    ✏️ تعديل البيانات
+                </button>
+            </div>
         </div>
-
+        
+        <!-- Edit Crusher Modal -->
+        <div id="editCrusherModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>تعديل بيانات الكسارة</h2>
+                    <button class="modal-close" data-action="close-modal" data-target="editCrusherModal">&times;</button>
+                </div>
+                <form id="editCrusherForm">
+                    <div class="form-group">
+                        <label for="editCrusherName">اسم الكسارة *</label>
+                        <input type="text" id="editCrusherName" name="name" autocomplete="organization" required>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" data-action="close-modal" data-target="editCrusherModal">إلغاء</button>
+                        <button type="submit" class="btn btn-primary">حفظ التعديلات</button>
+                    </div>
+                    <div id="editCrusherMessage"></div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="summary-card" id="summaryCard">
+            <h2 class="text-xl font-semibold mb-4">الملخص المالي</h2>
+            <div class="summary-grid" id="summaryGrid">
+                <div class="loading">جاري تحميل البيانات...</div>
+            </div>
+        </div>
+        
+        <!-- Material Prices Section -->
         <div class="section">
-            <h3>تسويات/مستحقات إضافية</h3>
-            <table class="detail-table" id="adjustmentsTable"></table>
+            <div class="section-header">
+                <h3 class="section-title">أسعار المواد</h3>
+                <button class="btn btn-primary" id="editPricesBtn">✏️ تعديل الأسعار</button>
+            </div>
+            <div class="section-content">
+                <div class="warning-box" style="margin-bottom: 1rem;">
+                    <div class="warning-icon">⚠️</div>
+                    <div class="warning-text">
+                        <strong>تنبيه:</strong> هذه الأسعار ستُستخدم للتسليمات الجديدة فقط. التسليمات السابقة تحتفظ بأسعارها التاريخية.
+                    </div>
+                </div>
+                <div class="prices-display-grid" id="pricesDisplayGrid">
+                    <div class="loading">جاري تحميل الأسعار...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-header">
+                <h3 class="section-title">ملخص المواد</h3>
+            </div>
+            <div class="section-content">
+                <div class="materials-grid" id="materialsContainer">
+                    <div class="loading">جاري تحميل المواد...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-header">
+                <h3 class="section-title">التسليمات</h3>
+            </div>
+            <div class="section-content">
+                <div class="controls">
+                    <input type="text" class="form-input search-input" id="deliveriesSearch" placeholder="ابحث في التسليمات..." autocomplete="off">
+                    <input type="date" class="form-input" id="deliveriesDateFrom" placeholder="من تاريخ" autocomplete="off">
+                    <input type="date" class="form-input" id="deliveriesDateTo" placeholder="إلى تاريخ" autocomplete="off">
+                    <select class="form-select" id="deliveriesSort">
+                        <option value="date-desc">الأحدث أولاً</option>
+                        <option value="date-asc">الأقدم أولاً</option>
+                        <option value="value-desc">الأعلى قيمة</option>
+                        <option value="value-asc">الأقل قيمة</option>
+                    </select>
+                </div>
+                <div class="table-container" id="deliveriesContainer">
+                    <div class="loading">جاري تحميل التسليمات...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-header">
+                <h3 class="section-title">التسويات والمستحقات</h3>
+                <button class="btn btn-primary" id="addAdjustmentBtn">+ إضافة تسوية</button>
+            </div>
+            <div class="section-content">
+                <div class="settlement-summary">
+                    <div class="settlement-grid" id="settlementSummary">
+                        <div class="loading">جاري تحميل ملخص التسويات...</div>
+                    </div>
+                </div>
+                <div class="controls">
+                    <input type="text" class="form-input search-input" id="adjustmentsSearch" placeholder="ابحث في التسويات...">
+                    <input type="date" class="form-input" id="adjustmentsDateFrom" placeholder="من تاريخ">
+                    <input type="date" class="form-input" id="adjustmentsDateTo" placeholder="إلى تاريخ">
+                    <select class="form-select" id="adjustmentsSort">
+                        <option value="date-desc">الأحدث أولاً</option>
+                        <option value="date-asc">الأقدم أولاً</option>
+                        <option value="amount-desc">الأعلى مبلغ</option>
+                        <option value="amount-asc">الأقل مبلغ</option>
+                    </select>
+                </div>
+                <div class="table-container" id="adjustmentsContainer">
+                    <div class="loading">جاري تحميل التسويات...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-header">
+                <h3 class="section-title">المدفوعات</h3>
+                <button class="btn btn-primary" id="addPaymentBtn">+ إضافة دفعة</button>
+            </div>
+            <div class="section-content">
+                <div class="controls">
+                    <input type="text" class="form-input search-input" id="paymentsSearch" placeholder="ابحث في المدفوعات...">
+                    <input type="date" class="form-input" id="paymentsDateFrom" placeholder="من تاريخ">
+                    <input type="date" class="form-input" id="paymentsDateTo" placeholder="إلى تاريخ">
+                    <select class="form-select" id="paymentsSort">
+                        <option value="date-desc">الأحدث أولاً</option>
+                        <option value="date-asc">الأقدم أولاً</option>
+                        <option value="amount-desc">الأعلى مبلغ</option>
+                        <option value="amount-asc">الأقل مبلغ</option>
+                    </select>
+                </div>
+                <div class="table-container" id="paymentsContainer">
+                    <div class="loading">جاري تحميل المدفوعات...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-header">
+                <h3 class="section-title">التقارير وكشوف الحساب</h3>
+            </div>
+            <div class="section-content">
+                <div class="reports-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-4);">
+                    <div class="report-card" style="background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%); color: white; padding: var(--space-6); border-radius: var(--radius-lg); box-shadow: var(--shadow);">
+                        <h4 style="margin: 0 0 var(--space-4) 0; font-size: 1.125rem;">تقرير التوريدات</h4>
+                        <p style="margin: 0 0 var(--space-4) 0; opacity: 0.9; font-size: 0.875rem;">تقرير مفصل بالكميات المورده حسب نوع المادة</p>
+                        
+                        <div style="display: flex; gap: var(--space-2); margin-bottom: var(--space-4);">
+                            <input type="date" id="deliveriesFromDate" class="form-input" style="flex: 1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: white;" placeholder="من تاريخ">
+                            <input type="date" id="deliveriesToDate" class="form-input" style="flex: 1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: white;" placeholder="إلى تاريخ">
+                        </div>
+                        <button id="generateDeliveriesReportBtn" class="btn" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); width: 100%;">
+                            📄 إنشاء تقرير التوريدات
+                        </button>
+                    </div>
+                    
+                    <div class="report-card" style="background: linear-gradient(135deg, var(--success-500) 0%, var(--success-600) 100%); color: white; padding: var(--space-6); border-radius: var(--radius-lg); box-shadow: var(--shadow);">
+                        <h4 style="margin: 0 0 var(--space-4) 0; font-size: 1.125rem;">كشف حساب الكسارة</h4>
+                        <p style="margin: 0 0 var(--space-4) 0; opacity: 0.9; font-size: 0.875rem;">كشف حساب شامل بالتوريدات والمدفوعات والرصيد</p>
+                        
+                        <div style="margin-bottom: var(--space-4);">
+                            <label style="display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); font-size: 0.875rem;">
+                                <input type="checkbox" id="useCustomDateRange" onchange="toggleDateInputs()" style="margin: 0;">
+                                استخدام فترة زمنية محددة
+                            </label>
+                            <div id="dateInputs" style="display: none; gap: var(--space-2);">
+                                <input type="date" id="statementFromDate" class="form-input" style="flex: 1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: white;" placeholder="من تاريخ">
+                                <input type="date" id="statementToDate" class="form-input" style="flex: 1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: white;" placeholder="إلى تاريخ">
+                            </div>
+                        </div>
+                        
+                        <button id="generateAccountStatementBtn" class="btn" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); width: 100%;">
+                            📊 إنشاء كشف الحساب
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <script src="/env.js"></script>
-    <script>
-        const API_BASE = (function () {
-            if (window.__API_BASE__) return window.__API_BASE__;
-            try { const origin = window.location.origin; if (!origin || origin === 'null') return 'http://localhost:5000/api'; return origin.replace(/\/$/, '') + '/api'; } catch (e) { return 'http://localhost:5000/api'; }
-        })();
+    <!-- Edit Prices Modal -->
+    <div class="modal" id="editPricesModal">
+        <div class="modal-content">
+            <div class="modal-header">تعديل أسعار المواد</div>
+            <div class="warning-box">
+                <div class="warning-icon">⚠️</div>
+                <div class="warning-text">
+                    <strong>تنبيه مهم:</strong> تعديل الأسعار سيؤثر فقط على التسليمات الجديدة. 
+                    جميع التسليمات السابقة ستحتفظ بالأسعار التاريخية المحفوظة وقت إنشائها.
+                </div>
+            </div>
+            <div id="editPricesMessage"></div>
+            <form id="editPricesForm">
+                <div class="prices-edit-grid">
+                    <div class="form-group">
+                        <label class="form-label" for="editSandPrice">رمل (جنيه/م³)</label>
+                        <input type="number" class="form-input" id="editSandPrice" step="0.01" min="0" placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="editAggregate1Price">سن 1 (جنيه/م³)</label>
+                        <input type="number" class="form-input" id="editAggregate1Price" step="0.01" min="0" placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="editAggregate2Price">سن 2 (جنيه/م³)</label>
+                        <input type="number" class="form-input" id="editAggregate2Price" step="0.01" min="0" placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="editAggregate3Price">سن 3 (جنيه/م³)</label>
+                        <input type="number" class="form-input" id="editAggregate3Price" step="0.01" min="0" placeholder="0.00">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" data-action="close-modal" data-target="editPricesModal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">حفظ التعديلات</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-        const sidebar = document.getElementById('sidebar');
-        const hamburger = document.getElementById('sidebarHamburger');
-        hamburger.addEventListener('click', function () { sidebar.classList.toggle('open'); });
-        document.body.addEventListener('click', function (e) {
-            if (window.innerWidth <= 700 && sidebar.classList.contains('open')) {
-                if (!sidebar.contains(e.target) && e.target !== hamburger) {
-                    sidebar.classList.remove('open');
-                }
-            }
-        });
-        window.addEventListener('resize', function () {
-            if (window.innerWidth > 700 && sidebar.classList.contains('open')) {
-                sidebar.classList.remove('open');
-            }
-        });
+    <!-- Payment Modal -->
+    <div class="modal" id="paymentModal">
+        <div class="modal-content">
+            <div class="modal-header">إضافة دفعة جديدة</div>
+            <div id="paymentMessage"></div>
+            <form id="paymentForm">
+                <div class="form-group">
+                    <label class="form-label" for="paymentAmount">المبلغ *</label>
+                    <input type="number" class="form-input" id="paymentAmount" required min="0" step="0.01" autocomplete="transaction-amount">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="paymentMethod">طريقة الدفع *</label>
+                    <select class="form-select" id="paymentMethod" required>
+                        <option value="">اختر طريقة الدفع</option>
+                        <option value="نقدي">نقدي</option>
+                        <option value="بنكي">بنكي</option>
+                        <option value="شيك">شيك</option>
+                        <option value="انستاباي">انستاباي</option>
+                        <option value="فودافون كاش">فودافون كاش</option>
+                    </select>
+                </div>
+                <div class="form-group" id="paymentDetailsGroup" style="display: none;">
+                    <label class="form-label" for="paymentDetails">رقم المعاملة / رقم الشيك</label>
+                    <input type="text" class="form-input" id="paymentDetails" placeholder="أدخل رقم المعاملة أو رقم الشيك" autocomplete="off">
+                </div>
+                <div class="form-group" id="paymentImageGroup" style="display: none;">
+                    <label class="form-label" for="paymentImage">صورة الدفع</label>
+                    <input type="file" class="form-input" id="paymentImage" accept="image/*">
+                    <small class="form-help">ارفع صورة الإيصال أو الشيك أو المعاملة البنكية</small>
+                    <div id="paymentImagePreview" style="margin-top: 10px;"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="paymentDate">التاريخ</label>
+                    <input type="date" class="form-input" id="paymentDate" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="paymentNote">ملاحظات</label>
+                    <textarea class="form-textarea" id="paymentNote"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" data-action="close-modal" data-target="paymentModal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">إضافة</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-        function formatCurrency(amount) {
-            return Number(amount || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP', minimumFractionDigits: 2 });
-        }
-        function formatDate(dateStr) {
-            if (!dateStr) return '';
-            const d = new Date(dateStr);
-            if (isNaN(d)) return dateStr;
-            return d.toLocaleDateString('ar-EG');
-        }
-        function getIdFromURL() {
-            const params = new URLSearchParams(window.location.search);
-            return params.get('id');
-        }
-        function renderSummary(totals) {
-            const card = document.getElementById('summaryCard');
-            card.innerHTML = `
-                <table>
-                    <tbody>
-                        <tr><td>إجمالي الكمية الصافية</td><td>${Number(totals.totalVolume || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} م³</td></tr>
-                        <tr><td>إجمالي القيمة</td><td>${formatCurrency(totals.totalValue)}</td></tr>
-                        <tr><td>إجمالي التعديلات</td><td>${formatCurrency(totals.totalAdjustments)}</td></tr>
-                        <tr class="balance-row"><td>عدد التسليمات</td><td>${totals.deliveriesCount || 0}</td></tr>
-                    </tbody>
-                </table>
-            `;
-        }
-        function renderDeliveries(rows) {
-            const tbl = document.getElementById('deliveriesTable');
-            tbl.innerHTML = '';
-            const head = document.createElement('thead');
-            const hr = document.createElement('tr');
-            ['التاريخ', 'العميل', 'مقاول النقل', 'نوع الحمولة', 'رقم البون', 'كمية', 'خصم', 'صافي', 'سعر المتر', 'الإجمالي', 'السائق', 'الرأس', 'المقطورة'].forEach(h => {
-                const th = document.createElement('th'); th.textContent = h; hr.appendChild(th);
-            });
-            head.appendChild(hr);
-            tbl.appendChild(head);
-            const body = document.createElement('tbody');
-            rows.forEach(r => {
-                const tr = document.createElement('tr');
-                const cells = [
-                    formatDate(r.created_at),
-                    r.client_name || '',
-                    r.contractor_name || '',
-                    r.material || '',
-                    r.voucher || '',
-                    Number(r.quantity || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-                    Number(r.discount_volume || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-                    Number(r.net_quantity || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-                    formatCurrency(r.price_per_meter),
-                    formatCurrency(r.total_value),
-                    r.driver_name || '',
-                    r.car_head || '',
-                    r.car_tail || ''
-                ];
-                cells.forEach(c => { const td = document.createElement('td'); td.textContent = c; tr.appendChild(td); });
-                body.appendChild(tr);
-            });
-            tbl.appendChild(body);
-        }
-        function renderAdjustments(rows) {
-            const tbl = document.getElementById('adjustmentsTable');
-            tbl.innerHTML = '';
-            const head = document.createElement('thead');
-            const hr = document.createElement('tr');
-            ['التاريخ', 'القيمة', 'السبب'].forEach(h => {
-                const th = document.createElement('th'); th.textContent = h; hr.appendChild(th);
-            });
-            head.appendChild(hr);
-            tbl.appendChild(head);
-            const body = document.createElement('tbody');
-            rows.forEach(r => {
-                const tr = document.createElement('tr');
-                [formatDate(r.created_at), formatCurrency(r.amount), r.reason || ''].forEach(c => {
-                    const td = document.createElement('td'); td.textContent = c; tr.appendChild(td);
-                });
-                body.appendChild(tr);
-            });
-            tbl.appendChild(body);
-        }
+    <!-- Adjustment Modal -->
+    <div class="modal" id="adjustmentModal">
+        <div class="modal-content">
+            <div class="modal-header">إضافة تسوية جديدة</div>
+            <div id="adjustmentMessage"></div>
+            <form id="adjustmentForm">
+                <div class="form-group">
+                    <label class="form-label" for="adjustmentAmount">المبلغ *</label>
+                    <input type="number" class="form-input" id="adjustmentAmount" required step="0.01">
+                    <small class="text-gray-500">موجب: يضاف للمستحقات | سالب: يخصم من المستحقات</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="adjustmentMethod">طريقة التسوية</label>
+                    <select class="form-select" id="adjustmentMethod">
+                        <option value="">اختر طريقة التسوية</option>
+                        <option value="نقدي">نقدي</option>
+                        <option value="بنكي">بنكي</option>
+                        <option value="شيك">شيك</option>
+                        <option value="انستاباي">انستاباي</option>
+                        <option value="فودافون كاش">فودافون كاش</option>
+                        <option value="تعديل حسابي">تعديل حسابي</option>
+                    </select>
+                </div>
+                <div class="form-group" id="adjustmentDetailsGroup" style="display: none;">
+                    <label class="form-label" for="adjustmentDetails">رقم المعاملة / رقم الشيك</label>
+                    <input type="text" class="form-input" id="adjustmentDetails" placeholder="أدخل رقم المعاملة أو رقم الشيك">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="adjustmentReason">السبب</label>
+                    <textarea class="form-textarea" id="adjustmentReason" placeholder="سبب التسوية..."></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" data-action="close-modal" data-target="adjustmentModal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">إضافة</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-        async function init() {
-            const id = getIdFromURL();
-            if (!id) { alert('لم يتم تحديد الكسارة'); return; }
-            try {
-                const resp = await fetch(`${API_BASE}/crushers/${id}`);
-                if (!resp.ok) throw new Error('تعذر تحميل بيانات الكسارة');
-                const data = await resp.json();
-                document.getElementById('crusherName').textContent = data.crusher?.name || 'الكسارة';
-                renderSummary(data.totals || {});
-                renderDeliveries(data.deliveries || []);
-                renderAdjustments(data.adjustments || []);
-            } catch (err) {
-                console.error(err);
-                alert('حدث خطأ أثناء تحميل البيانات');
-            }
-        }
+    <!-- Image Modal -->
+    <div class="modal" id="imageModal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <span>عرض الصورة</span>
+                <button class="modal-close" data-action="close-modal" data-target="imageModal">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align: center; padding: 20px;">
+                <img id="modalImage" style="max-width: 100%; max-height: 70vh; border-radius: 8px;" alt="صورة الدفع">
+            </div>
+        </div>
+    </div>
 
-        document.addEventListener('DOMContentLoaded', init);
-    </script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/crusher-details.js"></script>
 </body>
-
 </html>

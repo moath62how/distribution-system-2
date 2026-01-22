@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار إضافة دفعة بالعربية</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            direction: rtl;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>اختبار إضافة دفعة بالنص العربي</h1>
+        
+        <form id="paymentForm">
+            <div class="form-group">
+                <label>رقم العميل:</label>
+                <input type="number" id="clientId" value="1" required>
+            </div>
+            
+            <div class="form-group">
+                <label>المبلغ:</label>
+                <input type="number" id="amount" value="50" step="0.01" required>
+            </div>
+            
+            <div class="form-group">
+                <label>طريقة الدفع:</label>
+                <select id="method" required>
+                    <option value="">اختر طريقة الدفع</option>
+                    <option value="نقدي">نقدي</option>
+                    <option value="انستاباي">انستاباي</option>
+                    <option value="فودافون كاش">فودافون كاش</option>
+                    <option value="بنكي">بنكي</option>
+                    <option value="شيك">شيك</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>التفاصيل:</label>
+                <input type="text" id="details" value="2000" placeholder="رقم المعاملة أو الشيك">
+            </div>
+            
+            <div class="form-group">
+                <label>ملاحظات:</label>
+                <textarea id="note" rows="3" placeholder="بيد محمد">بيد محمد</textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>تاريخ الدفع:</label>
+                <input type="date" id="paymentDate" required>
+            </div>
+            
+            <button type="submit">إضافة الدفعة</button>
+        </form>
+        
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        // Set today's date
+        document.getElementById('paymentDate').value = new Date().toISOString().split('T')[0];
+        
+        document.getElementById('paymentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const clientId = document.getElementById('clientId').value;
+            const amount = document.getElementById('amount').value;
+            const method = document.getElementById('method').value;
+            const details = document.getElementById('details').value;
+            const note = document.getElementById('note').value;
+            const paid_at = document.getElementById('paymentDate').value;
+            
+            const paymentData = {
+                amount: parseFloat(amount),
+                method,
+                details,
+                note,
+                paid_at
+            };
+            
+            console.log('Sending payment data:', paymentData);
+            
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = 'جاري إرسال البيانات...';
+            resultDiv.className = 'result';
+            
+            try {
+                const response = await fetch(`http://localhost:5000/api/clients/${clientId}/payments`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(paymentData)
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
+                
+                if (!response.ok) {
+                    let errorMessage = `HTTP ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.message || errorMessage;
+                    } catch (parseError) {
+                        try {
+                            const errorText = await response.text();
+                            errorMessage = errorText || errorMessage;
+                        } catch (textError) {
+                            console.error('Could not read error response');
+                        }
+                    }
+                    throw new Error(errorMessage);
+                }
+                
+                const result = await response.json();
+                console.log('Success result:', result);
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <h3>✅ تم إضافة الدفعة بنجاح!</h3>
+                    <p><strong>رقم الدفعة:</strong> ${result.id}</p>
+                    <p><strong>المبلغ:</strong> ${result.amount} جنيه</p>
+                    <p><strong>طريقة الدفع:</strong> ${result.method}</p>
+                    <p><strong>التفاصيل:</strong> ${result.details || '-'}</p>
+                    <p><strong>الملاحظات:</strong> ${result.note || '-'}</p>
+                    <p><strong>التاريخ:</strong> ${new Date(result.paid_at).toLocaleDateString('ar-EG')}</p>
+                `;
+                
+                // Reset form
+                document.getElementById('paymentForm').reset();
+                document.getElementById('paymentDate').value = new Date().toISOString().split('T')[0];
+                
+            } catch (error) {
+                console.error('Payment error:', error);
+                
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h3>❌ فشل في إضافة الدفعة</h3>
+                    <p><strong>الخطأ:</strong> ${error.message}</p>
+                    <p>يرجى المحاولة مرة أخرى أو التحقق من البيانات المدخلة.</p>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

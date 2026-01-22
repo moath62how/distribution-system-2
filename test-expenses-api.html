@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>اختبار API المصروفات</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        .btn { 
+            padding: 10px 20px; 
+            margin: 5px; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+        }
+        .btn:hover { background: #0056b3; }
+        #results { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>اختبار API المصروفات</h1>
+    
+    <div class="test-section">
+        <h2>المشكلة المبلغ عنها:</h2>
+        <p class="error">❌ 500 Internal Server Error في /api/expenses/stats</p>
+        <p class="info">ℹ️ السبب: استخدام MySQL syntax في SQLite database</p>
+        <p class="success">✅ تم إصلاح الـ SQL query ليكون متوافق مع SQLite</p>
+    </div>
+    
+    <div class="test-section">
+        <h2>اختبار API المصروفات:</h2>
+        <button class="btn" onclick="testExpensesStats()">اختبار إحصائيات المصروفات</button>
+        <button class="btn" onclick="testExpensesList()">اختبار قائمة المصروفات</button>
+        <button class="btn" onclick="testCreateExpense()">اختبار إضافة مصروف</button>
+        <button class="btn" onclick="testDatabaseTables()">فحص جداول قاعدة البيانات</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>الإصلاح المطبق:</h2>
+        <h3>قبل الإصلاح (MySQL syntax):</h3>
+        <pre>
+SELECT 
+    DATE_FORMAT(expense_date, '%Y-%m') as month,
+    SUM(amount) as total,
+    COUNT(*) as count
+FROM expenses 
+WHERE expense_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+GROUP BY DATE_FORMAT(expense_date, '%Y-%m')
+ORDER BY month DESC
+        </pre>
+        
+        <h3>بعد الإصلاح (SQLite syntax):</h3>
+        <pre>
+SELECT 
+    strftime('%Y-%m', expense_date) as month,
+    SUM(amount) as total,
+    COUNT(*) as count
+FROM expenses 
+WHERE expense_date >= date('now', '-12 months')
+GROUP BY strftime('%Y-%m', expense_date)
+ORDER BY month DESC
+        </pre>
+    </div>
+    
+    <div class="test-section">
+        <h2>النتائج:</h2>
+        <div id="results">انقر على أي زر أعلاه لبدء الاختبار...</div>
+    </div>
+
+    <script>
+        const API_BASE = (function () {
+            try {
+                const origin = window.location.origin;
+                if (!origin || origin === 'null') return 'http://localhost:5000/api';
+                return origin.replace(/\/$/, '') + '/api';
+            } catch (e) {
+                return 'http://localhost:5000/api';
+            }
+        })();
+        
+        function log(message) {
+            const results = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            results.textContent += `[${timestamp}] ${message}\n`;
+            console.log(message);
+        }
+        
+        function clearLog() {
+            document.getElementById('results').textContent = '';
+        }
+        
+        async function testExpensesStats() {
+            clearLog();
+            log('🧪 اختبار إحصائيات المصروفات...');
+            log(`API Base: ${API_BASE}`);
+            
+            try {
+                log(`📤 إرسال GET إلى: ${API_BASE}/expenses/stats`);
+                
+                const response = await fetch(`${API_BASE}/expenses/stats`);
+                
+                log(`📥 استجابة HTTP: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    log(`❌ خطأ في الاستجابة: ${errorText}`);
+                    return;
+                }
+                
+                const result = await response.json();
+                log(`✅ نجح جلب الإحصائيات!`);
+                log(`📊 نوع monthlyTrend: ${typeof result.monthlyTrend}`);
+                log(`📊 هل monthlyTrend array: ${Array.isArray(result.monthlyTrend)}`);
+                log(`📊 قيمة monthlyTrend: ${JSON.stringify(result.monthlyTrend)}`);
+                log(`📊 الإحصائيات الكاملة: ${JSON.stringify(result, null, 2)}`);
+                
+                // Test the specific issue
+                if (Array.isArray(result.monthlyTrend)) {
+                    log(`✅ monthlyTrend هو array صحيح`);
+                    log(`📊 عدد العناصر: ${result.monthlyTrend.length}`);
+                } else {
+                    log(`❌ monthlyTrend ليس array! النوع: ${typeof result.monthlyTrend}`);
+                    log(`🔧 يجب إصلاح هيكل البيانات في الـ backend`);
+                }
+                
+            } catch (error) {
+                log(`❌ خطأ في الشبكة: ${error.message}`);
+                log(`🔍 تفاصيل الخطأ: ${error.stack}`);
+            }
+        }
+        
+        async function testExpensesList() {
+            clearLog();
+            log('🧪 اختبار قائمة المصروفات...');
+            
+            try {
+                log(`📤 إرسال GET إلى: ${API_BASE}/expenses`);
+                
+                const response = await fetch(`${API_BASE}/expenses`);
+                
+                log(`📥 استجابة HTTP: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    log(`❌ خطأ في الاستجابة: ${errorText}`);
+                    return;
+                }
+                
+                const result = await response.json();
+                log(`✅ نجح جلب قائمة المصروفات!`);
+                log(`📋 عدد المصروفات: ${result.expenses?.length || 0}`);
+                log(`📋 البيانات: ${JSON.stringify(result, null, 2)}`);
+                
+            } catch (error) {
+                log(`❌ خطأ في الشبكة: ${error.message}`);
+            }
+        }
+        
+        async function testCreateExpense() {
+            clearLog();
+            log('🧪 اختبار إضافة مصروف...');
+            
+            const testExpense = {
+                expense_date: new Date().toISOString().split('T')[0],
+                category: 'وقود',
+                description: 'مصروف تجريبي - ' + new Date().getTime(),
+                amount: 100,
+                notes: 'اختبار API'
+            };
+            
+            try {
+                log(`📤 إرسال POST إلى: ${API_BASE}/expenses`);
+                log(`📦 البيانات: ${JSON.stringify(testExpense, null, 2)}`);
+                
+                const response = await fetch(`${API_BASE}/expenses`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testExpense)
+                });
+                
+                log(`📥 استجابة HTTP: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    log(`❌ خطأ في الاستجابة: ${errorText}`);
+                    return;
+                }
+                
+                const result = await response.json();
+                log(`✅ نجح إضافة المصروف!`);
+                log(`📋 المصروف الجديد: ${JSON.stringify(result, null, 2)}`);
+                
+            } catch (error) {
+                log(`❌ خطأ في الشبكة: ${error.message}`);
+            }
+        }
+        
+        async function testDatabaseTables() {
+            clearLog();
+            log('🧪 فحص جداول قاعدة البيانات...');
+            
+            // Test if we can access basic endpoints to verify database connection
+            const endpoints = [
+                '/clients',
+                '/contractors', 
+                '/crushers',
+                '/expenses'
+            ];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    log(`📤 فحص: ${API_BASE}${endpoint}`);
+                    
+                    const response = await fetch(`${API_BASE}${endpoint}`);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        log(`✅ ${endpoint}: يعمل بشكل صحيح`);
+                    } else {
+                        log(`❌ ${endpoint}: خطأ ${response.status}`);
+                    }
+                    
+                } catch (error) {
+                    log(`❌ ${endpoint}: خطأ في الاتصال - ${error.message}`);
+                }
+            }
+        }
+        
+        // Test on page load
+        window.addEventListener('load', () => {
+            log('🚀 صفحة اختبار المصروفات جاهزة');
+            log(`🌐 API Base URL: ${API_BASE}`);
+            log('💡 انقر على الأزرار أعلاه لاختبار API');
+            log('');
+            log('🔧 الإصلاح المطبق:');
+            log('- تم تغيير MySQL syntax إلى SQLite syntax');
+            log('- DATE_FORMAT → strftime');
+            log('- CURDATE() → date("now")');
+            log('- DATE_SUB → date("now", "-12 months")');
+        });
+    </script>
+</body>
+</html>

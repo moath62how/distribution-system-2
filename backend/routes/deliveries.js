@@ -33,7 +33,7 @@ router.get('/', async (req, res, next) => {
     }
 });
 
-// Create delivery
+// Create delivery with HISTORICAL PRICE INTEGRITY
 router.post('/', async (req, res, next) => {
     try {
         const {
@@ -49,11 +49,18 @@ router.post('/', async (req, res, next) => {
             car_head,
             car_tail,
             car_volume,
-            contractor_charge
+            contractor_charge_per_meter
         } = req.body;
 
+        // Validation
         if (!client_id) {
             return res.status(400).json({ message: 'client_id مطلوب' });
+        }
+        if (!crusher_id) {
+            return res.status(400).json({ message: 'crusher_id مطلوب' });
+        }
+        if (!material) {
+            return res.status(400).json({ message: 'نوع المادة مطلوب' });
         }
         if (!quantity || isNaN(quantity) || Number(quantity) <= 0) {
             return res.status(400).json({ message: 'الكمية غير صالحة' });
@@ -61,34 +68,142 @@ router.post('/', async (req, res, next) => {
         if (price_per_meter === undefined || price_per_meter === null || isNaN(price_per_meter)) {
             return res.status(400).json({ message: 'السعر غير صالح' });
         }
+        if (!car_volume || isNaN(car_volume) || Number(car_volume) <= 0) {
+            return res.status(400).json({ message: 'تكعيب السيارة مطلوب' });
+        }
 
-        const grossQty = toNumber(quantity);
+        // Validate material type (only 4 allowed)
+        const allowedMaterials = ['رمل', 'سن 1', 'سن 2', 'سن 3'];
+        if (!allowedMaterials.includes(material)) {
+            return res.status(400).json({ message: 'نوع المادة غير صالح. المواد المسموحة: رمل، سن 1، سن 2، سن 3' });
+        }
+
+        // Validate unique voucher number if provided
+        if (voucher) {
+            const existingDelivery = await db('deliveries').where({ voucher }).first();
+            if (existingDelivery) {
+                return res.status(400).json({ message: `رقم البون ${voucher} مستخدم من قبل` });
+            }
+        }
+
+        // CRITICAL: Fetch current material price from crusher (this becomes historical price)
+        const crusher = await db('crushers').where('id', crusher_id).first();
+        if (!crusher) {
+            return res.status(400).json({ message: 'الكسارة غير موجودة' });
+        }
+
+        let materialPriceAtTime = 0;
+        switch (material) {
+            case 'رمل':
+                materialPriceAtTime = toNumber(crusher.sand_price);
+                break;
+            case 'سن 1':
+                materialPriceAtTime = toNumber(crusher.aggregate1_price);
+                break;
+            case 'سن 2':
+                materialPriceAtTime = toNumber(crusher.aggregate2_price);
+                break;
+            case 'سن 3':
+                materialPriceAtTime = toNumber(crusher.aggregate3_price);
+                break;
+        }
+
+        // Validate that material has a price set
+        if (materialPriceAtTime <= 0) {
+            return res.status(400).json({ message: `سعر ${material} غير محدد في الكسارة ${crusher.name}` });
+        }
+
+        // Calculate quantities and costs
+        const carVol = toNumber(car_volume);
         const discount = Math.max(toNumber(discount_volume), 0);
-        const netQty = Math.max(grossQty - discount, 0);
-        const unitPrice = toNumber(price_per_meter);
-        const totalValue = netQty * unitPrice;
+        const deliveredQuantity = toNumber(quantity); // Delivered quantity for client/contractor
+        const netQuantityForClient = Math.max(deliveredQuantity - discount, 0); // Net quantity after discount for client
+        const netQuantityForCrusher = Math.max(carVol - discount, 0); // Net car volume after discount for crusher
+        const clientUnitPrice = toNumber(price_per_meter);
+        const contractorRate = toNumber(contractor_charge_per_meter);
 
-        const [id] = await db('deliveries').insert({
+        // Calculate totals - CORRECTED: Crusher uses car volume, client uses delivered quantity
+        const totalValueToClient = netQuantityForClient * clientUnitPrice; // Client pays for delivered quantity after discount
+        const crusherTotalCost = netQuantityForCrusher * materialPriceAtTime; // Crusher cost based on car volume after discount
+        const contractorTotalCharge = deliveredQuantity * contractorRate; // Contractor paid for full delivered quantity (before discount)
+
+        // CRITICAL: Store historical price and calculated costs
+        const deliveryData = {
             client_id,
-            crusher_id: crusher_id || null,
+            crusher_id,
             contractor_id: contractor_id || null,
-            material: material || null,
+            material,
             voucher: voucher || null,
-            quantity: grossQty,
+            quantity: deliveredQuantity, // Original delivered quantity
             discount_volume: discount,
-            net_quantity: netQty,
-            price_per_meter: unitPrice,
-            total_value: totalValue,
+            net_quantity: netQuantityForClient, // Net delivered quantity after discount (for client)
+            price_per_meter: clientUnitPrice,
+            total_value: totalValueToClient, // Based on delivered quantity after discount
+            car_volume: carVol,
+            material_price_at_time: materialPriceAtTime, // HISTORICAL PRICE - NEVER CHANGES
+            crusher_total_cost: crusherTotalCost, // CALCULATED FROM CAR VOLUME AFTER DISCOUNT
+            contractor_charge_per_meter: contractorRate,
+            contractor_total_charge: contractorTotalCharge, // Based on delivered quantity
             driver_name: driver_name || null,
             car_head: car_head || null,
-            car_tail: car_tail || null,
-            car_volume: car_volume ? toNumber(car_volume) : null,
-            contractor_charge: contractor_charge ? toNumber(contractor_charge) : 0
-        });
+            car_tail: car_tail || null
+        };
 
+        const [id] = await db('deliveries').insert(deliveryData);
         const delivery = await db('deliveries').where({ id }).first();
+        
         res.status(201).json(delivery);
     } catch (err) {
+        next(err);
+    }
+});
+
+// Validate delivery data integrity
+router.get('/validate', async (req, res, next) => {
+    try {
+        // Check for deliveries without material_price_at_time
+        const invalidDeliveries = await db('deliveries')
+            .select('id', 'material', 'crusher_id', 'material_price_at_time', 'crusher_total_cost')
+            .where(function() {
+                this.whereNull('material_price_at_time')
+                    .orWhere('material_price_at_time', 0)
+                    .orWhereNull('crusher_total_cost')
+                    .orWhere('crusher_total_cost', 0);
+            });
+
+        const validationResult = {
+            totalDeliveries: await db('deliveries').count('id as count').first(),
+            invalidDeliveries: invalidDeliveries.length,
+            isValid: invalidDeliveries.length === 0,
+            invalidRecords: invalidDeliveries
+        };
+
+        res.json(validationResult);
+    } catch (err) {
+        next(err);
+    }
+});
+
+// Delete delivery (with accounting impact warning)
+router.delete('/:id', async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        
+        // Check if delivery exists
+        const delivery = await db('deliveries').where('id', id).first();
+        if (!delivery) {
+            return res.status(404).json({ message: 'التسليمة غير موجودة' });
+        }
+        
+        // Delete the delivery
+        await db('deliveries').where('id', id).del();
+        
+        res.json({ 
+            message: 'تم حذف التسليمة بنجاح',
+            warning: 'تم حذف التسليمة - يرجى مراجعة الحسابات المحاسبية'
+        });
+    } catch (err) {
+        console.error('Error deleting delivery:', err);
         next(err);
     }
 });

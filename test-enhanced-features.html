@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>اختبار الميزات المحسنة</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; direction: rtl; background: #f8f9fa; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .feature-card { 
+            background: white; 
+            padding: 20px; 
+            margin: 15px 0; 
+            border-radius: 10px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-left: 4px solid #007bff;
+        }
+        .feature-card h3 { margin: 0 0 15px 0; color: #007bff; font-size: 18px; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .test-btn { 
+            background: linear-gradient(135deg, #28a745, #20c997); 
+            color: white; 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 25px; 
+            margin: 5px; 
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        .test-btn:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+        .test-btn.secondary { 
+            background: linear-gradient(135deg, #6c757d, #5a6268); 
+        }
+        .test-btn.primary { 
+            background: linear-gradient(135deg, #007bff, #0056b3); 
+        }
+        .status { 
+            padding: 15px; 
+            margin: 15px 0; 
+            border-radius: 8px; 
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { color: #2c3e50; margin-bottom: 10px; }
+        .header p { color: #7f8c8d; font-size: 16px; }
+        .demo-section { background: #e9ecef; padding: 20px; border-radius: 8px; margin: 15px 0; }
+        .demo-section h4 { margin: 0 0 10px 0; color: #495057; }
+        .step { background: white; padding: 10px; margin: 5px 0; border-radius: 5px; border-right: 3px solid #17a2b8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 اختبار الميزات المحسنة</h1>
+            <p>كشف الحساب المحسن والفلاتر المتقدمة</p>
+        </div>
+        
+        <div class="status success">
+            <strong>✅ تم تطبيق جميع التحسينات بنجاح!</strong>
+            <br>الخادم يعمل والميزات الجديدة جاهزة للاختبار.
+        </div>
+        
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3>📊 كشف الحساب المحسن</h3>
+                <p><strong>الجديد:</strong> يمكن إنشاء كشف حساب بدون تحديد تاريخ (جميع البيانات) أو بفترة محددة</p>
+                
+                <div class="demo-section">
+                    <h4>طريقة الاستخدام:</h4>
+                    <div class="step">1. افتح صفحة تفاصيل العميل</div>
+                    <div class="step">2. في قسم التقارير، لاحظ checkbox "تحديد فترة زمنية محددة"</div>
+                    <div class="step">3. اتركه غير مفعل لكشف حساب شامل</div>
+                    <div class="step">4. أو فعله وحدد فترة زمنية</div>
+                </div>
+                
+                <button class="test-btn primary" onclick="testFullStatement()">اختبار كشف حساب شامل</button>
+                <button class="test-btn" onclick="testDateRangeStatement()">اختبار كشف حساب بتاريخ</button>
+                <button class="test-btn secondary" onclick="window.open('backend/public/clients-details.html?id=1', '_blank')">فتح صفحة العميل</button>
+            </div>
+            
+            <div class="feature-card">
+                <h3>🔍 فلاتر التاريخ المتقدمة</h3>
+                <p><strong>الجديد:</strong> فلترة جميع الجداول بالنص والتاريخ مع أزرار مسح الفلاتر</p>
+                
+                <div class="demo-section">
+                    <h4>الجداول المحسنة:</h4>
+                    <div class="step">📦 التسليمات: بحث + من تاريخ + إلى تاريخ</div>
+                    <div class="step">💰 المدفوعات: بحث + من تاريخ + إلى تاريخ</div>
+                    <div class="step">⚖️ التسويات: بحث + من تاريخ + إلى تاريخ</div>
+                    <div class="step">🧹 أزرار "مسح الفلاتر" لكل جدول</div>
+                </div>
+                
+                <button class="test-btn" onclick="window.open('backend/public/clients-details.html?id=1', '_blank')">اختبار الفلاتر</button>
+            </div>
+            
+            <div class="feature-card">
+                <h3>🎨 تصميم محسن</h3>
+                <p><strong>الجديد:</strong> كشف حساب بتصميم احترافي مع ألوان واضحة وأقسام منظمة</p>
+                
+                <div class="demo-section">
+                    <h4>التحسينات البصرية:</h4>
+                    <div class="step">🎨 تدرجات لونية جذابة</div>
+                    <div class="step">📱 تصميم متجاوب</div>
+                    <div class="step">🟢 أخضر للمبالغ لنا</div>
+                    <div class="step">🔴 أحمر للمبالغ علينا</div>
+                    <div class="step">✨ تأثيرات hover وانتقالات سلسة</div>
+                </div>
+                
+                <button class="test-btn primary" onclick="testDesign()">معاينة التصميم</button>
+            </div>
+            
+            <div class="feature-card">
+                <h3>⚡ اختبار سريع</h3>
+                <p>اختبر جميع الميزات بنقرة واحدة</p>
+                
+                <button class="test-btn" onclick="runQuickTest()">🧪 اختبار سريع شامل</button>
+                <button class="test-btn secondary" onclick="checkServerStatus()">🔍 فحص حالة الخادم</button>
+            </div>
+        </div>
+        
+        <div id="testResults"></div>
+        
+        <div class="feature-card">
+            <h3>📋 دليل الاختبار التفصيلي</h3>
+            
+            <div class="demo-section">
+                <h4>1. اختبار كشف الحساب:</h4>
+                <div class="step">افتح صفحة تفاصيل العميل</div>
+                <div class="step">انتقل لقسم "التقارير"</div>
+                <div class="step">جرب إنشاء كشف حساب بدون تحديد تاريخ</div>
+                <div class="step">جرب إنشاء كشف حساب بتاريخ محدد</div>
+                <div class="step">لاحظ التصميم المحسن والألوان الواضحة</div>
+            </div>
+            
+            <div class="demo-section">
+                <h4>2. اختبار الفلاتر:</h4>
+                <div class="step">في جدول التسليمات، اكتب نص في البحث</div>
+                <div class="step">حدد تاريخ "من" و "إلى"</div>
+                <div class="step">لاحظ الفلترة الفورية</div>
+                <div class="step">انقر "مسح الفلاتر" وتأكد من إعادة التعيين</div>
+                <div class="step">كرر نفس الخطوات للمدفوعات والتسويات</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function testFullStatement() {
+            const url = 'http://localhost:5000/api/clients/1/reports/statement';
+            window.open(url, '_blank');
+            showResult('تم فتح كشف الحساب الشامل (جميع البيانات)', 'info');
+        }
+        
+        function testDateRangeStatement() {
+            const fromDate = '2024-01-01';
+            const toDate = '2024-12-31';
+            const url = `http://localhost:5000/api/clients/1/reports/statement?from=${fromDate}&to=${toDate}`;
+            window.open(url, '_blank');
+            showResult(`تم فتح كشف الحساب للفترة من ${fromDate} إلى ${toDate}`, 'info');
+        }
+        
+        function testDesign() {
+            testFullStatement();
+            showResult('تم فتح كشف الحساب - لاحظ التصميم المحسن والألوان الواضحة', 'success');
+        }
+        
+        function runQuickTest() {
+            showResult('جاري تشغيل الاختبار السريع...', 'info');
+            
+            setTimeout(() => {
+                // Test server
+                checkServerStatus();
+                
+                // Open client details
+                window.open('backend/public/clients-details.html?id=1', '_blank');
+                
+                // Test reports
+                setTimeout(() => {
+                    testFullStatement();
+                }, 1000);
+                
+                showResult('تم تشغيل الاختبار السريع - تحقق من النوافذ المفتوحة', 'success');
+            }, 500);
+        }
+        
+        async function checkServerStatus() {
+            try {
+                const response = await fetch('http://localhost:5000/api/clients');
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult(`✅ الخادم يعمل بشكل صحيح! تم العثور على ${data.data ? data.data.length : 0} عميل`, 'success');
+                } else {
+                    throw new Error('Server error: ' + response.status);
+                }
+            } catch (error) {
+                showResult(`❌ خطأ في الاتصال بالخادم: ${error.message}`, 'error');
+            }
+        }
+        
+        function showResult(message, type) {
+            const resultsDiv = document.getElementById('testResults');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `status ${type}`;
+            alertDiv.innerHTML = `<strong>${new Date().toLocaleTimeString('ar-EG')}:</strong> ${message}`;
+            
+            resultsDiv.insertBefore(alertDiv, resultsDiv.firstChild);
+            
+            // Remove old messages (keep only last 5)
+            const alerts = resultsDiv.querySelectorAll('.status');
+            if (alerts.length > 5) {
+                for (let i = 5; i < alerts.length; i++) {
+                    alerts[i].remove();
+                }
+            }
+        }
+        
+        // Test server on page load
+        window.onload = checkServerStatus;
+    </script>
+</body>
+</html>

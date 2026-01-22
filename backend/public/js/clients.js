@@ -9,92 +9,176 @@ const API_BASE = (function () {
     }
 })();
 
+// State
+let clientsData = [];
 let currentPage = 1;
 let currentSearch = '';
 let totalPages = 1;
 
-// --- Helpers ---
-
+// Helpers
 function formatCurrency(amount) {
-    return Number(amount).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP', minimumFractionDigits: 2 });
+    return Number(amount || 0).toLocaleString('ar-EG', {
+        style: 'currency',
+        currency: 'EGP',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    });
 }
 
-/**
- * Creates a single client card DOM node
- * @param {object} client - Client object (id, name, balance, ...future fields)
- * @returns {HTMLElement}
- */
+function formatQuantity(qty) {
+    return Number(qty || 0).toLocaleString('ar-EG', {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1
+    });
+}
+
+// Create client card with modern design
 function createClientCard(client) {
-    // Main card container
     const card = document.createElement('div');
     card.className = 'client-card';
 
-    // Client name
-    const nameDiv = document.createElement('div');
-    nameDiv.className = 'client-card-name';
-    nameDiv.textContent = client.name || "—";
+    // Header with name and actions
+    const header = document.createElement('div');
+    header.className = 'client-header';
+    
+    const name = document.createElement('h3');
+    name.className = 'client-name';
+    name.textContent = client.name;
+    
+    const actions = document.createElement('div');
+    actions.className = 'client-actions';
+    
+    const detailsBtn = document.createElement('button');
+    detailsBtn.className = 'btn btn-sm btn-primary';
+    detailsBtn.innerHTML = '📊 التفاصيل';
+    detailsBtn.onclick = () => window.location.href = `clients-details.html?id=${client.id}`;
+    
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'btn btn-sm btn-danger';
+    deleteBtn.innerHTML = '🗑️ حذف';
+    deleteBtn.onclick = () => deleteClient(client.id, client.name);
+    
+    actions.appendChild(detailsBtn);
+    actions.appendChild(deleteBtn);
+    header.appendChild(name);
+    header.appendChild(actions);
+    card.appendChild(header);
 
-    // Balance
-    const balanceDiv = document.createElement('div');
-    balanceDiv.className = 'client-card-balance';
-    let bal = typeof client.balance === 'number' ? client.balance : 0;
-    balanceDiv.textContent = formatCurrency(bal);
-    if (bal > 0) {
-        balanceDiv.classList.add('positive-balance');
-    } else if (bal < 0) {
-        balanceDiv.classList.add('negative-balance');
-    } else {
-        balanceDiv.classList.add('zero-balance');
+    // Contact info section
+    if (client.phone) {
+        const contactSection = document.createElement('div');
+        contactSection.className = 'client-contact';
+        
+        const phoneItem = document.createElement('div');
+        phoneItem.className = 'contact-item';
+        phoneItem.innerHTML = `<span class="contact-icon">📱</span> ${client.phone}`;
+        
+        contactSection.appendChild(phoneItem);
+        card.appendChild(contactSection);
     }
 
-    // Add more fields here if needed (e.g. phone, address...)
+    // Financial summary section
+    const financialSection = document.createElement('div');
+    financialSection.className = 'client-financial';
+    
+    const balanceItem = document.createElement('div');
+    balanceItem.className = 'financial-item';
+    
+    const balanceLabel = document.createElement('span');
+    balanceLabel.className = 'financial-label';
+    balanceLabel.textContent = 'الرصيد الحالي:';
+    
+    const balanceValue = document.createElement('span');
+    balanceValue.className = 'financial-value';
+    const balance = client.balance || 0;
+    balanceValue.textContent = formatCurrency(Math.abs(balance));
+    
+    if (balance > 0) {
+        balanceValue.classList.add('text-danger');
+        balanceItem.appendChild(balanceLabel);
+        balanceItem.appendChild(document.createTextNode(' '));
+        balanceItem.appendChild(balanceValue);
+        balanceItem.appendChild(document.createTextNode(' (مدين لنا)'));
+    } else if (balance < 0) {
+        balanceValue.classList.add('text-success');
+        balanceItem.appendChild(balanceLabel);
+        balanceItem.appendChild(document.createTextNode(' '));
+        balanceItem.appendChild(balanceValue);
+        balanceItem.appendChild(document.createTextNode(' (دائن لدينا)'));
+    } else {
+        balanceValue.classList.add('text-muted');
+        balanceItem.appendChild(balanceLabel);
+        balanceItem.appendChild(document.createTextNode(' '));
+        balanceItem.appendChild(balanceValue);
+        balanceItem.appendChild(document.createTextNode(' (متوازن)'));
+    }
+    
+    financialSection.appendChild(balanceItem);
+    card.appendChild(financialSection);
 
-    // Open button
-    const openBtn = document.createElement('button');
-    openBtn.className = 'client-card-open-btn';
-    openBtn.textContent = 'فتح الحساب';
-    openBtn.addEventListener('click', function () {
-        window.location.href = `clients-details.html?id=${encodeURIComponent(client.id)}`;
+    // Stats section
+    const stats = document.createElement('div');
+    stats.className = 'client-stats';
+    
+    const statsItems = [
+        { label: 'إجمالي التسليمات', value: formatCurrency(client.totalDeliveries || 0) },
+        { label: 'إجمالي المدفوعات', value: formatCurrency(client.totalPayments || 0) }
+    ];
+    
+    statsItems.forEach(stat => {
+        const statItem = document.createElement('div');
+        statItem.className = 'stat-item';
+        
+        const statLabel = document.createElement('span');
+        statLabel.className = 'stat-label';
+        statLabel.textContent = stat.label + ':';
+        
+        const statValue = document.createElement('span');
+        statValue.className = 'stat-value';
+        statValue.textContent = stat.value;
+        
+        statItem.appendChild(statLabel);
+        statItem.appendChild(statValue);
+        stats.appendChild(statItem);
     });
-
-    // Assemble card
-    card.appendChild(nameDiv);
-    card.appendChild(balanceDiv);
-    card.appendChild(openBtn);
-
+    
+    card.appendChild(stats);
     return card;
 }
 
+// Render clients grid
 function renderClients(clients) {
-    // Get or create container
-    let container = document.getElementById('clientsContainer');
-    if (!container) {
-        // Fallback: create if not present
-        container = document.createElement('div');
-        container.id = 'clientsContainer';
-        document.body.appendChild(container);
-    }
-    container.innerHTML = '';
-
-    // Cards grid
-    const grid = document.createElement('div');
-    grid.className = 'clients-grid';
-
-    clients.forEach(client => {
-        const card = createClientCard(client);
-        grid.appendChild(card);
-    });
-
-    container.appendChild(grid);
-}
-
-function renderPagination(pagination) {
-    if (!pagination) return;
-
-    const container = document.getElementById('paginationContainer');
+    const container = document.getElementById('clientsContainer');
     if (!container) return;
 
     container.innerHTML = '';
+
+    if (!clients || clients.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">👥</div>
+                <div class="empty-text">لا توجد عملاء مسجلين</div>
+                <button class="btn btn-primary" onclick="showModal('addClientModal')">
+                    إضافة عميل جديد
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    clients.forEach(client => {
+        container.appendChild(createClientCard(client));
+    });
+}
+
+// Render pagination
+function renderPagination(pagination) {
+    const container = document.getElementById('paginationContainer');
+    if (!container || !pagination) return;
+
+    container.innerHTML = '';
+
+    if (pagination.pages <= 1) return;
 
     const nav = document.createElement('nav');
     nav.className = 'pagination';
@@ -103,7 +187,7 @@ function renderPagination(pagination) {
     if (pagination.page > 1) {
         const prevBtn = document.createElement('button');
         prevBtn.textContent = 'السابق';
-        prevBtn.className = 'pagination-btn';
+        prevBtn.className = 'btn btn-secondary btn-sm';
         prevBtn.addEventListener('click', () => loadClients(pagination.page - 1));
         nav.appendChild(prevBtn);
     }
@@ -118,7 +202,7 @@ function renderPagination(pagination) {
     if (pagination.page < pagination.pages) {
         const nextBtn = document.createElement('button');
         nextBtn.textContent = 'التالي';
-        nextBtn.className = 'pagination-btn';
+        nextBtn.className = 'btn btn-secondary btn-sm';
         nextBtn.addEventListener('click', () => loadClients(pagination.page + 1));
         nav.appendChild(nextBtn);
     }
@@ -126,211 +210,232 @@ function renderPagination(pagination) {
     container.appendChild(nav);
 }
 
-// --- Responsive styles injection ---
-(function injectClientsCss() {
-    const style = document.createElement('style');
-    style.innerHTML = `
-    #clientsContainer {
-        max-width: 1100px;
-        margin: 24px auto 0 auto;
-        padding: 0 14px;
+// Modal functions
+function showModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.add('active');
     }
-    .clients-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 22px;
-        align-items: stretch;
-    }
-    .client-card {
-        background: #fff;
-        border: 1px solid #e5e9f2;
-        border-radius: 9px;
-        box-shadow: 0 3px 12px #28527a13;
-        padding: 28px 20px 22px 20px;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        min-height: 160px;
-        position: relative;
-        transition: box-shadow 0.17s;
-    }
-    .client-card:hover {
-        box-shadow: 0 9px 24px #28527a29;
-        border-color: #c8e2ff;
-    }
-    .client-card-name {
-        font-size: 1.25rem;
-        font-weight: bold;
-        color: #28527a;
-        margin-bottom: 15px;
-        word-break: break-word;
-    }
-    .client-card-balance {
-        font-size: 1.07rem;
-        margin-bottom: 24px;
-        font-family: 'Cairo', Arial, sans-serif;
-    }
-    .positive-balance { color: #388e3c; font-weight: 500; }
-    .negative-balance { color: #c0392b; font-weight: 500; }
-    .zero-balance { color: #7c7c7c; }
-    .client-card-open-btn {
-        margin-top: auto;
-        padding: 8px 22px;
-        border-radius: 6px;
-        background: #2d6cdf;
-        color: #fff;
-        border: none;
-        font-size: 1rem;
-        font-family: 'Cairo', Arial, sans-serif;
-        cursor: pointer;
-        box-shadow: 0 1px 5px #28527a13;
-        transition: background 0.14s, box-shadow 0.14s;
-    }
-    .client-card-open-btn:hover, .client-card-open-btn:focus {
-        background: #174886;
-        box-shadow: 0 3px 14px #28527a22;
-    }
-    #paginationContainer {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin: 32px 0;
-        gap: 16px;
-    }
-    .pagination {
-        display: flex;
-        gap: 12px;
-        align-items: center;
-        justify-content: center;
-    }
-    .pagination-btn {
-        padding: 8px 16px;
-        background: #2d6cdf;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 0.95rem;
-        transition: background 0.14s;
-    }
-    .pagination-btn:hover {
-        background: #174886;
-    }
-    .pagination-info {
-        font-size: 0.95rem;
-        color: #555;
-        font-weight: 500;
-    }
-    #searchContainer {
-        max-width: 1100px;
-        margin: 16px auto 0;
-        padding: 0 14px;
-        display: flex;
-        gap: 8px;
-    }
-    #clientSearch {
-        flex: 1;
-        padding: 10px 12px;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        font-size: 0.95rem;
-        font-family: 'Cairo', Arial, sans-serif;
-    }
-    #clientSearch:focus {
-        outline: none;
-        border-color: #2d6cdf;
-        box-shadow: 0 0 0 3px rgba(45, 108, 223, 0.1);
-    }
-    #searchBtn {
-        padding: 10px 20px;
-        background: #2d6cdf;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-family: 'Cairo', Arial, sans-serif;
-        transition: background 0.14s;
-    }
-    #searchBtn:hover {
-        background: #174886;
-    }
-    @media (max-width: 680px) {
-        .client-card { padding: 18px 11px 14px 11px; }
-        .clients-grid { gap: 13px; }
-        #clientsContainer { padding: 0 4px; }
-        #searchContainer { flex-direction: column; }
-    }
-    `;
-    document.head.appendChild(style);
-})();
+}
 
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+function showMessage(elementId, message, type) {
+    const msgDiv = document.getElementById(elementId);
+    if (msgDiv) {
+        msgDiv.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+        setTimeout(() => msgDiv.innerHTML = '', 5000);
+    }
+}
+
+// API functions
 async function loadClients(page = 1) {
-    const params = new URLSearchParams();
-    params.set('page', page);
-    params.set('limit', 25);
-    if (currentSearch) {
-        params.set('q', currentSearch);
-    }
+    try {
+        const params = new URLSearchParams();
+        params.set('page', page);
+        params.set('limit', 25);
+        if (currentSearch) {
+            params.set('q', currentSearch);
+        }
 
-    const resp = await fetch(`${API_BASE}/clients?${params}`);
-
-    if (!resp.ok) throw new Error('تعذر تحميل العملاء');
-    const result = await resp.json();
-
-    renderClients(result.data);
-    if (result.pagination) {
-        renderPagination(result.pagination);
-        currentPage = result.pagination.page;
+        const response = await fetch(`${API_BASE}/clients?${params}`);
+        if (!response.ok) {
+            throw new Error('فشل في تحميل بيانات العملاء');
+        }
+        
+        const result = await response.json();
+        clientsData = result.data || [];
+        
+        renderClients(clientsData);
+        if (result.pagination) {
+            renderPagination(result.pagination);
+            currentPage = result.pagination.page;
+            totalPages = result.pagination.pages;
+        }
+    } catch (error) {
+        console.error('Error loading clients:', error);
+        const container = document.getElementById('clientsContainer');
+        container.innerHTML = `
+            <div class="error-state">
+                <div class="error-icon">❌</div>
+                <div class="error-text">خطأ في تحميل بيانات العملاء</div>
+                <div class="error-details">${error.message}</div>
+                <button class="btn btn-primary" onclick="loadClients()">إعادة المحاولة</button>
+            </div>
+        `;
     }
 }
 
-async function fetchClients() {
-    return loadClients(1);
+async function createClient(clientData) {
+    const response = await fetch(`${API_BASE}/clients`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(clientData)
+    });
+    
+    if (!response.ok) {
+        throw new Error('فشل في إضافة العميل');
+    }
+    
+    return response.json();
 }
 
-// --- Initialization on DOMContentLoaded ---
-document.addEventListener('DOMContentLoaded', function () {
-    // Create search container
-    const searchContainer = document.createElement('div');
-    searchContainer.id = 'searchContainer';
-    const searchInput = document.createElement('input');
-    searchInput.id = 'clientSearch';
-    searchInput.type = 'text';
-    searchInput.placeholder = 'ابحث عن عميل...';
-
-    const searchBtn = document.createElement('button');
-    searchBtn.id = 'searchBtn';
-    searchBtn.textContent = 'بحث';
+// Event handlers
+function setupEventHandlers() {
+    // Add client button
+    document.getElementById('addClientBtn').addEventListener('click', () => {
+        showModal('addClientModal');
+    });
+    
+    // Add client form
+    document.getElementById('addClientForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData(e.target);
+        const clientData = {
+            name: formData.get('name'),
+            phone: formData.get('phone') || null,
+            opening_balance: parseFloat(formData.get('opening_balance')) || 0
+        };
+        
+        try {
+            await createClient(clientData);
+            showMessage('addClientMessage', 'تم إضافة العميل بنجاح', 'success');
+            
+            setTimeout(() => {
+                closeModal('addClientModal');
+                loadClients(currentPage);
+                e.target.reset();
+            }, 1000);
+        } catch (error) {
+            showMessage('addClientMessage', error.message, 'error');
+        }
+    });
+    
+    // Search functionality
+    const searchInput = document.getElementById('clientSearch');
+    const searchBtn = document.getElementById('searchBtn');
+    
     searchBtn.addEventListener('click', () => {
-        currentSearch = searchInput.value;
+        currentSearch = searchInput.value.trim();
         loadClients(1);
     });
-
+    
     searchInput.addEventListener('keyup', (e) => {
         if (e.key === 'Enter') {
-            currentSearch = searchInput.value;
+            currentSearch = searchInput.value.trim();
             loadClients(1);
         }
     });
-
-    searchContainer.appendChild(searchInput);
-    searchContainer.appendChild(searchBtn);
-    document.body.insertBefore(searchContainer, document.getElementById('clientsContainer'));
-
-    // Create pagination container
-    const paginationContainer = document.createElement('div');
-    paginationContainer.id = 'paginationContainer';
-    document.body.appendChild(paginationContainer);
-
-    fetchClients()
-        .catch(err => {
-            console.error(err);
-            const container = document.getElementById('clientsContainer') || document.body;
-            const errorDiv = document.createElement('div');
-            errorDiv.textContent = 'تعذر تحميل العملاء';
-            errorDiv.style.color = '#c0392b';
-            errorDiv.style.margin = '16px 0';
-            container.appendChild(errorDiv);
+    
+    // Modal close on backdrop click
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal(modal.id);
+            }
         });
+    });
+}
+
+// Delete client function
+async function deleteClient(clientId, clientName) {
+    try {
+        // Show confirmation dialog
+        const result = await Swal.fire({
+            title: 'تأكيد الحذف',
+            text: `هل أنت متأكد من حذف العميل "${clientName}"؟`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'نعم، احذف',
+            cancelButtonText: 'إلغاء',
+            reverseButtons: true
+        });
+
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        // Show loading
+        Swal.fire({
+            title: 'جاري الحذف...',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        const response = await fetch(`${API_BASE}/clients/${clientId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'فشل في حذف العميل');
+        }
+
+        // Show success message
+        await Swal.fire({
+            title: 'تم الحذف بنجاح',
+            text: data.message,
+            icon: 'success',
+            confirmButtonText: 'موافق'
+        });
+
+        // Reload clients list
+        loadClients();
+
+    } catch (error) {
+        console.error('Delete client error:', error);
+        
+        // Show error message
+        Swal.fire({
+            title: 'خطأ في الحذف',
+            text: error.message,
+            icon: 'error',
+            confirmButtonText: 'موافق'
+        });
+    }
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    setupEventHandlers();
+    loadClients();
+});
+
+// Make functions available globally
+window.deleteClient = deleteClient;
+window.showModal = showModal;
+window.closeModal = closeModal;
+
+// Event delegation for CSP compliance
+document.addEventListener('click', function(e) {
+    // Handle modal close buttons
+    if (e.target.classList.contains('modal-close')) {
+        const modal = e.target.closest('.modal');
+        if (modal) {
+            closeModal(modal.id);
+        }
+    }
+    
+    // Handle cancel buttons in modals
+    if (e.target.textContent === 'إلغاء' && e.target.classList.contains('btn-secondary')) {
+        const modal = e.target.closest('.modal');
+        if (modal) {
+            closeModal(modal.id);
+        }
+    }
 });
 

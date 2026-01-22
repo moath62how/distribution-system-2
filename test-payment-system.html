@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Payment System</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Payment System Test</h1>
+    
+    <div class="test-section">
+        <h2>Test Crusher Payment Update</h2>
+        <button onclick="testCrusherPaymentUpdate()">Test Crusher Payment Update</button>
+        <div id="crusherResult"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Contractor Payment Update</h2>
+        <button onclick="testContractorPaymentUpdate()">Test Contractor Payment Update</button>
+        <div id="contractorResult"></div>
+    </div>
+    
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        
+        async function testCrusherPaymentUpdate() {
+            const resultDiv = document.getElementById('crusherResult');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                // First, get crusher details to find a payment to update
+                const response = await fetch(`${API_BASE}/crushers/1`);
+                const data = await response.json();
+                
+                if (data.payments && data.payments.length > 0) {
+                    const payment = data.payments[0];
+                    
+                    // Try to update the payment
+                    const updateResponse = await fetch(`${API_BASE}/crushers/1/payments/${payment.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            amount: payment.amount,
+                            method: 'نقدي',
+                            date: '2026-01-20',
+                            note: 'تحديث تجريبي',
+                            details: 'تفاصيل تجريبية'
+                        })
+                    });
+                    
+                    if (updateResponse.ok) {
+                        const result = await updateResponse.json();
+                        resultDiv.innerHTML = '<div class="success">✅ Crusher payment update successful!</div>';
+                    } else {
+                        const error = await updateResponse.text();
+                        resultDiv.innerHTML = `<div class="error">❌ Crusher payment update failed: ${error}</div>`;
+                    }
+                } else {
+                    resultDiv.innerHTML = '<div class="error">❌ No payments found to test</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testContractorPaymentUpdate() {
+            const resultDiv = document.getElementById('contractorResult');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                // First, get contractor details to find a payment to update
+                const response = await fetch(`${API_BASE}/contractors/1`);
+                const data = await response.json();
+                
+                if (data.payments && data.payments.length > 0) {
+                    const payment = data.payments[0];
+                    
+                    // Try to update the payment
+                    const updateResponse = await fetch(`${API_BASE}/contractors/1/payments/${payment.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            amount: payment.amount,
+                            method: 'نقدي',
+                            paid_at: '2026-01-20',
+                            note: 'تحديث تجريبي',
+                            details: 'تفاصيل تجريبية'
+                        })
+                    });
+                    
+                    if (updateResponse.ok) {
+                        const result = await updateResponse.json();
+                        resultDiv.innerHTML = '<div class="success">✅ Contractor payment update successful!</div>';
+                    } else {
+                        const error = await updateResponse.text();
+                        resultDiv.innerHTML = `<div class="error">❌ Contractor payment update failed: ${error}</div>`;
+                    }
+                } else {
+                    resultDiv.innerHTML = '<div class="error">❌ No payments found to test</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

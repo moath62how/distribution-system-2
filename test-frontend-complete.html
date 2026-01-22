@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار شامل للواجهة الأمامية</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            direction: rtl;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 3px;
+            display: none;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .image-preview {
+            max-width: 200px;
+            max-height: 200px;
+            margin-top: 10px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+        }
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal img {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>اختبار شامل للواجهة الأمامية</h1>
+        
+        <!-- Test 1: Payment Addition -->
+        <div class="test-section">
+            <h3>اختبار 1: إضافة دفعة بالنص العربي</h3>
+            <form id="paymentForm">
+                <div class="form-group">
+                    <label>رقم العميل:</label>
+                    <input type="number" id="clientId" value="2" required>
+                </div>
+                <div class="form-group">
+                    <label>المبلغ:</label>
+                    <input type="number" id="amount" value="100" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>طريقة الدفع:</label>
+                    <select id="method" required>
+                        <option value="">اختر طريقة الدفع</option>
+                        <option value="نقدي">نقدي</option>
+                        <option value="انستاباي">انستاباي</option>
+                        <option value="فودافون كاش">فودافون كاش</option>
+                        <option value="بنكي">بنكي</option>
+                        <option value="شيك">شيك</option>
+                    </select>
+                </div>
+                <div class="form-group" id="detailsGroup" style="display: none;">
+                    <label>التفاصيل:</label>
+                    <input type="text" id="details" placeholder="رقم المعاملة أو الشيك">
+                </div>
+                <div class="form-group">
+                    <label>ملاحظات:</label>
+                    <textarea id="note" rows="2" placeholder="بيد أحمد محمد">بيد أحمد محمد</textarea>
+                </div>
+                <div class="form-group">
+                    <label>تاريخ الدفع:</label>
+                    <input type="date" id="paymentDate" required>
+                </div>
+                <div class="form-group" id="imageGroup" style="display: none;">
+                    <label>صورة الدفعة:</label>
+                    <input type="file" id="paymentImage" accept="image/*">
+                    <div id="imagePreview"></div>
+                </div>
+                <button type="submit">إضافة الدفعة</button>
+            </form>
+            <div id="paymentResult" class="result"></div>
+        </div>
+        
+        <!-- Test 2: Image Display -->
+        <div class="test-section">
+            <h3>اختبار 2: عرض الصور</h3>
+            <button onclick="testImageDisplay()">اختبار عرض صورة صالحة</button>
+            <button onclick="testInvalidImageDisplay()">اختبار عرض صورة غير صالحة</button>
+            <div id="imageResult" class="result"></div>
+        </div>
+        
+        <!-- Test 3: Client Details Loading -->
+        <div class="test-section">
+            <h3>اختبار 3: تحميل تفاصيل العميل</h3>
+            <button onclick="testClientDetails()">تحميل تفاصيل العميل رقم 2</button>
+            <div id="clientResult" class="result"></div>
+        </div>
+    </div>
+    
+    <!-- Image Modal -->
+    <div id="imageModal" class="modal" onclick="closeImageModal()">
+        <img id="modalImage" src="" alt="صورة الدفعة">
+    </div>
+
+    <script>
+        // Set today's date
+        document.getElementById('paymentDate').value = new Date().toISOString().split('T')[0];
+        
+        // Method change handler
+        document.getElementById('method').addEventListener('change', (e) => {
+            const detailsGroup = document.getElementById('detailsGroup');
+            const imageGroup = document.getElementById('imageGroup');
+            const detailsInput = document.getElementById('details');
+            
+            if (['بنكي', 'شيك', 'انستاباي', 'فودافون كاش'].includes(e.target.value)) {
+                detailsGroup.style.display = 'block';
+                imageGroup.style.display = 'block';
+                detailsInput.required = true;
+                
+                if (e.target.value === 'شيك') {
+                    detailsInput.placeholder = 'رقم الشيك';
+                    detailsInput.value = Math.floor(Math.random() * 100000);
+                } else if (e.target.value === 'بنكي') {
+                    detailsInput.placeholder = 'رقم المعاملة البنكية';
+                    detailsInput.value = Math.floor(Math.random() * 1000000);
+                } else {
+                    detailsInput.placeholder = 'رقم المعاملة';
+                    detailsInput.value = Math.floor(Math.random() * 10000);
+                }
+            } else {
+                detailsGroup.style.display = 'none';
+                imageGroup.style.display = 'none';
+                detailsInput.required = false;
+                detailsInput.value = '';
+            }
+        });
+        
+        // Image upload handler
+        document.getElementById('paymentImage').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            const preview = document.getElementById('imagePreview');
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    preview.innerHTML = `<img src="${event.target.result}" alt="معاينة الصورة" class="image-preview">`;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                preview.innerHTML = '';
+            }
+        });
+        
+        // Payment form submission
+        document.getElementById('paymentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const clientId = document.getElementById('clientId').value;
+            const amount = document.getElementById('amount').value;
+            const method = document.getElementById('method').value;
+            const details = document.getElementById('details').value;
+            const note = document.getElementById('note').value;
+            const paid_at = document.getElementById('paymentDate').value;
+            
+            const paymentData = {
+                amount: parseFloat(amount),
+                method,
+                details,
+                note,
+                paid_at
+            };
+            
+            // Handle image upload
+            const imageFile = document.getElementById('paymentImage').files[0];
+            if (imageFile) {
+                try {
+                    const payment_image = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => resolve(e.target.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(imageFile);
+                    });
+                    paymentData.payment_image = payment_image;
+                } catch (error) {
+                    showResult('paymentResult', 'خطأ في قراءة الصورة: ' + error.message, 'error');
+                    return;
+                }
+            }
+            
+            console.log('Sending payment data:', paymentData);
+            
+            showResult('paymentResult', 'جاري إرسال البيانات...', '');
+            
+            try {
+                const response = await fetch(`http://localhost:5000/api/clients/${clientId}/payments`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(paymentData)
+                });
+                
+                if (!response.ok) {
+                    let errorMessage = `HTTP ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.message || errorMessage;
+                    } catch (parseError) {
+                        try {
+                            const errorText = await response.text();
+                            errorMessage = errorText || errorMessage;
+                        } catch (textError) {
+                            console.error('Could not read error response');
+                        }
+                    }
+                    throw new Error(errorMessage);
+                }
+                
+                const result = await response.json();
+                console.log('Success result:', result);
+                
+                showResult('paymentResult', `
+                    <h4>✅ تم إضافة الدفعة بنجاح!</h4>
+                    <p><strong>رقم الدفعة:</strong> ${result.id}</p>
+                    <p><strong>المبلغ:</strong> ${result.amount} جنيه</p>
+                    <p><strong>طريقة الدفع:</strong> ${result.method}</p>
+                    <p><strong>التفاصيل:</strong> ${result.details || '-'}</p>
+                    <p><strong>الملاحظات:</strong> ${result.note || '-'}</p>
+                    <p><strong>الصورة:</strong> ${result.payment_image ? 'موجودة' : 'غير موجودة'}</p>
+                    ${result.payment_image ? `<button onclick="showImageModal('${result.payment_image}')">عرض الصورة</button>` : ''}
+                `, 'success');
+                
+            } catch (error) {
+                console.error('Payment error:', error);
+                showResult('paymentResult', `❌ فشل في إضافة الدفعة: ${error.message}`, 'error');
+            }
+        });
+        
+        function showResult(elementId, message, type) {
+            const resultDiv = document.getElementById(elementId);
+            resultDiv.innerHTML = message;
+            resultDiv.className = `result ${type}`;
+            resultDiv.style.display = 'block';
+        }
+        
+        function showImageModal(imageData) {
+            const modal = document.getElementById('imageModal');
+            const modalImage = document.getElementById('modalImage');
+            
+            console.log('Showing image modal with data:', imageData ? imageData.substring(0, 50) + '...' : 'null');
+            
+            if (!imageData || imageData === 'null' || imageData === 'undefined') {
+                alert('لا توجد صورة لعرضها');
+                return;
+            }
+            
+            if (imageData.startsWith('data:image/')) {
+                modalImage.src = imageData;
+            } else if (imageData.startsWith('http')) {
+                modalImage.src = imageData;
+            } else {
+                const imageFormat = imageData.charAt(0) === '/' ? 'jpeg' : 'png';
+                modalImage.src = `data:image/${imageFormat};base64,${imageData}`;
+            }
+            
+            modalImage.onerror = function() {
+                console.error('Failed to load image:', imageData ? imageData.substring(0, 100) : 'null');
+                alert('فشل في تحميل الصورة - البيانات قد تكون تالفة');
+                closeImageModal();
+            };
+            
+            modalImage.onload = function() {
+                console.log('Image loaded successfully');
+            };
+            
+            modal.classList.add('active');
+        }
+        
+        function closeImageModal() {
+            document.getElementById('imageModal').classList.remove('active');
+        }
+        
+        function testImageDisplay() {
+            const testImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+            showImageModal(testImage);
+            showResult('imageResult', '✅ تم اختبار عرض صورة صالحة', 'success');
+        }
+        
+        function testInvalidImageDisplay() {
+            showImageModal('invalid_image_data');
+            showResult('imageResult', '⚠️ تم اختبار عرض صورة غير صالحة', 'error');
+        }
+        
+        async function testClientDetails() {
+            showResult('clientResult', 'جاري تحميل تفاصيل العميل...', '');
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/clients/2');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Client details:', data);
+                
+                showResult('clientResult', `
+                    <h4>✅ تم تحميل تفاصيل العميل بنجاح!</h4>
+                    <p><strong>الاسم:</strong> ${data.client.name}</p>
+                    <p><strong>الهاتف:</strong> ${data.client.phone || '-'}</p>
+                    <p><strong>الرصيد الصافي:</strong> ${data.totals.balance} جنيه</p>
+                    <p><strong>عدد التسليمات:</strong> ${data.deliveries.length}</p>
+                    <p><strong>عدد المدفوعات:</strong> ${data.payments.length}</p>
+                    <p><strong>عدد التسويات:</strong> ${data.adjustments.length}</p>
+                `, 'success');
+                
+            } catch (error) {
+                console.error('Client details error:', error);
+                showResult('clientResult', `❌ فشل في تحميل تفاصيل العميل: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

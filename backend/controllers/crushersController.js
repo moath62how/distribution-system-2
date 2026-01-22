@@ -30,15 +30,31 @@ module.exports = {
                 .where({ entity_type: 'crusher', entity_id: crusherId })
                 .orderBy('created_at', 'desc');
 
-            const totalVolume = deliveries.reduce((sum, d) => sum + Number(d.quantity || 0), 0);
+            const payments = await db('crusher_payments')
+                .where('crusher_id', crusherId)
+                .orderBy('paid_at', 'desc');
+
+            // Calculate total volume using car_volume - discount_volume (for crusher)
+            const totalVolume = deliveries.reduce((sum, d) => {
+                const carVolume = Number(d.car_volume || 0);
+                const discount = Number(d.discount_volume || 0);
+                return sum + Math.max(carVolume - discount, 0);
+            }, 0);
             const totalValue = deliveries.reduce((sum, d) => sum + Number(d.total_value || 0), 0);
             const totalAdjustments = adjustments.reduce((sum, a) => sum + Number(a.amount || 0), 0);
 
-            // Aggregate totals per material for the cards in the view
+            // Calculate total needed and total paid for commerce
+            const totalNeeded = totalValue + totalAdjustments;
+            const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+            const net = totalNeeded - totalPaid;
+
+            // Aggregate totals per material for the cards in the view (using car_volume for crusher)
             const materialMap = {};
             deliveries.forEach(d => {
-                const price = Number(d.price_per_meter || 0);
-                const qty = Number(d.quantity || 0);
+                const price = Number(d.material_price_at_time || 0);
+                const carVolume = Number(d.car_volume || 0);
+                const discount = Number(d.discount_volume || 0);
+                const qty = Math.max(carVolume - discount, 0); // Use car volume for crusher calculations
                 // ensure total_value is consistent
                 d.total_value = price * qty;
 
@@ -55,7 +71,8 @@ module.exports = {
                 crusher,
                 deliveries,
                 adjustments,
-                totals: { totalVolume, totalValue, totalAdjustments, deliveriesCount: deliveries.length },
+                payments,
+                totals: { totalVolume, totalValue: totalValue, totalAdjustments, deliveriesCount: deliveries.length, totalDeliveries: totalValue, totalNeeded, totalPaid, net },
                 materialTotals
             });
         } catch (err) {
