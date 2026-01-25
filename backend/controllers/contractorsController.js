@@ -1,109 +1,241 @@
-const db = require('../db');
-const { toNumber } = require('./utils');
+const contractorService = require('../services/contractorService');
 
-module.exports = {
-    async contractorsIndex(req, res, next) {
+class ContractorsController {
+    // Get all contractors
+    async getAllContractors(req, res, next) {
         try {
-            const contractors = await db('contractors').select('*');
-
-            const contractorsWithTotals = await Promise.all(
-                contractors.map(async c => {
-                    const totalTrips = await db('deliveries')
-                        .where('contractor_id', c.id)
-                        .sum('contractor_charge as total')
-                        .first();
-                    const totalPayments = await db('contractor_payments')
-                        .where('contractor_id', c.id)
-                        .sum('amount as total')
-                        .first();
-                    const totalAdjustments = await db('adjustments')
-                        .where({ entity_type: 'contractor', entity_id: c.id })
-                        .sum('amount as total')
-                        .first();
-
-                    const balance = Number(c.opening_balance || 0)
-                        + Number(totalTrips.total || 0)
-                        - Number(totalPayments.total || 0)
-                        + Number(totalAdjustments.total || 0);
-
-                    return {
-                        ...c,
-                        totalTrips: totalTrips.total || 0,
-                        totalPayments: totalPayments.total || 0,
-                        totalAdjustments: totalAdjustments.total || 0,
-                        balance
-                    };
-                })
-            );
-
-            res.render('contractors/index', { contractors: contractorsWithTotals });
-        } catch (err) {
-            next(err);
-        }
-    },
-
-    async createContractor(req, res, next) {
-        try {
-            const { name, opening_balance } = req.body;
-
-            if (!name || !name.trim()) {
-                req.flash('error', 'الاسم مطلوب');
-                return res.redirect('/contractors');
-            }
-
-            await db('contractors').insert({
-                name: name.trim(),
-                opening_balance: toNumber(opening_balance)
-            });
-
-            req.flash('success', 'تم إضافة المقاول بنجاح');
-            res.redirect('/contractors');
-        } catch (err) {
-            next(err);
-        }
-    },
-
-    async contractorDetails(req, res, next) {
-        const contractorId = req.params.id;
-        try {
-            const contractor = await db('contractors').where('id', contractorId).first();
-            if (!contractor) return res.status(404).send('المقاول غير موجود');
-
-            const deliveries = await db('deliveries')
-                .where('contractor_id', contractorId)
-                .leftJoin('clients', 'deliveries.client_id', 'clients.id')
-                .leftJoin('crushers', 'deliveries.crusher_id', 'crushers.id')
-                .select(
-                    'deliveries.*',
-                    'clients.name as client_name',
-                    'crushers.name as crusher_name'
-                )
-                .orderBy('deliveries.created_at', 'desc');
-
-            const payments = await db('contractor_payments')
-                .where({ contractor_id: contractorId })
-                .orderBy('paid_at', 'desc');
-
-            const adjustments = await db('adjustments')
-                .where({ entity_type: 'contractor', entity_id: contractorId })
-                .orderBy('created_at', 'desc');
-
-            const totalTrips = deliveries.reduce((sum, d) => sum + Number(d.contractor_charge || 0), 0);
-            const totalPayments = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-            const totalAdjustments = adjustments.reduce((sum, a) => sum + Number(a.amount || 0), 0);
-            const balance = Number(contractor.opening_balance || 0) + totalTrips - totalPayments + totalAdjustments;
-
-            const totals = {
-                openingBalance: Number(contractor.opening_balance || 0),
-                totalTrips,
-                totalPayments,
-                totalAdjustments,
-                balance
-            };
-
-            res.render('contractors/details', { contractor, deliveries, payments, adjustments, totals });
+            const result = await contractorService.getAllContractors();
+            res.json(result);
         } catch (err) {
             next(err);
         }
     }
-};
+
+    // Get contractor by ID
+    async getContractorById(req, res, next) {
+        try {
+            const contractor = await contractorService.getContractorById(req.params.id);
+
+            if (!contractor) {
+                return res.status(404).json({ message: 'المقاول غير موجود' });
+            }
+
+            res.json(contractor);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // Create new contractor
+    async createContractor(req, res, next) {
+        try {
+            const { name, opening_balance } = req.body;
+
+            if (!name || name.trim() === '') {
+                return res.status(400).json({ message: 'اسم المقاول مطلوب' });
+            }
+
+            const contractor = await contractorService.createContractor({
+                name: name.trim(),
+                opening_balance
+            });
+
+            res.status(201).json(contractor);
+        } catch (err) {
+            if (err.code === 11000) {
+                return res.status(400).json({ message: 'اسم المقاول موجود بالفعل' });
+            }
+            next(err);
+        }
+    }
+
+    // Update contractor
+    async updateContractor(req, res, next) {
+        try {
+            const { name, opening_balance } = req.body;
+
+            if (!name || name.trim() === '') {
+                return res.status(400).json({ message: 'اسم المقاول مطلوب' });
+            }
+
+            const contractor = await contractorService.updateContractor(req.params.id, {
+                name: name.trim(),
+                opening_balance
+            });
+
+            if (!contractor) {
+                return res.status(404).json({ message: 'المقاول غير موجود' });
+            }
+
+            res.json(contractor);
+        } catch (err) {
+            if (err.code === 11000) {
+                return res.status(400).json({ message: 'اسم المقاول موجود بالفعل' });
+            }
+            next(err);
+        }
+    }
+
+    // Delete contractor
+    async deleteContractor(req, res, next) {
+        try {
+            const contractor = await contractorService.deleteContractor(req.params.id);
+
+            if (!contractor) {
+                return res.status(404).json({ message: 'المقاول غير موجود' });
+            }
+
+            res.json({ message: 'تم حذف المقاول بنجاح' });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // Get contractor payments
+    async getContractorPayments(req, res, next) {
+        try {
+            const payments = await contractorService.getContractorPayments(req.params.id);
+            res.json({ payments });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // Add contractor payment
+    async addContractorPayment(req, res, next) {
+        try {
+            const { amount, method, details, note, paid_at } = req.body;
+
+            const payment = await contractorService.addContractorPayment(req.params.id, {
+                amount,
+                method: method?.trim() || '',
+                details: details?.trim() || '',
+                note: note?.trim() || '',
+                paid_at: paid_at ? new Date(paid_at) : new Date()
+            });
+
+            res.status(201).json(payment);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // Update contractor payment
+    async updateContractorPayment(req, res, next) {
+        try {
+            const { amount, method, details, note, paid_at } = req.body;
+
+            const payment = await contractorService.updateContractorPayment(
+                req.params.id,
+                req.params.paymentId,
+                {
+                    amount,
+                    method: method?.trim() || '',
+                    details: details?.trim() || '',
+                    note: note?.trim() || '',
+                    paid_at: paid_at ? new Date(paid_at) : new Date()
+                }
+            );
+
+            if (!payment) {
+                return res.status(404).json({ message: 'الدفعة غير موجودة' });
+            }
+
+            res.json(payment);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // Delete contractor payment
+    async deleteContractorPayment(req, res, next) {
+        try {
+            const payment = await contractorService.deleteContractorPayment(
+                req.params.id,
+                req.params.paymentId
+            );
+
+            if (!payment) {
+                return res.status(404).json({ message: 'الدفعة غير موجودة' });
+            }
+
+            res.json({ message: 'تم حذف الدفعة بنجاح' });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // Get contractor adjustments
+    async getContractorAdjustments(req, res, next) {
+        try {
+            const adjustments = await contractorService.getContractorAdjustments(req.params.id);
+            res.json({ adjustments });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // Add contractor adjustment
+    async addContractorAdjustment(req, res, next) {
+        try {
+            const { amount, method, details, reason } = req.body;
+
+            const adjustment = await contractorService.addContractorAdjustment(req.params.id, {
+                amount,
+                method: method?.trim() || '',
+                details: details?.trim() || '',
+                reason: reason?.trim() || ''
+            });
+
+            res.status(201).json(adjustment);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // Update contractor adjustment
+    async updateContractorAdjustment(req, res, next) {
+        try {
+            const { amount, method, details, reason } = req.body;
+
+            const adjustment = await contractorService.updateContractorAdjustment(
+                req.params.id,
+                req.params.adjustmentId,
+                {
+                    amount,
+                    method: method?.trim() || '',
+                    details: details?.trim() || '',
+                    reason: reason?.trim() || ''
+                }
+            );
+
+            if (!adjustment) {
+                return res.status(404).json({ message: 'التسوية غير موجودة' });
+            }
+
+            res.json(adjustment);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // Delete contractor adjustment
+    async deleteContractorAdjustment(req, res, next) {
+        try {
+            const adjustment = await contractorService.deleteContractorAdjustment(
+                req.params.id,
+                req.params.adjustmentId
+            );
+
+            if (!adjustment) {
+                return res.status(404).json({ message: 'التسوية غير موجودة' });
+            }
+
+            res.json({ message: 'تم حذف التسوية بنجاح' });
+        } catch (err) {
+            next(err);
+        }
+    }
+}
+
+module.exports = new ContractorsController();

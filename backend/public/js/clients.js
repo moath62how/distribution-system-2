@@ -40,24 +40,24 @@ function createClientCard(client) {
     // Header with name and actions
     const header = document.createElement('div');
     header.className = 'client-header';
-    
+
     const name = document.createElement('h3');
     name.className = 'client-name';
     name.textContent = client.name;
-    
+
     const actions = document.createElement('div');
     actions.className = 'client-actions';
-    
+
     const detailsBtn = document.createElement('button');
     detailsBtn.className = 'btn btn-sm btn-primary';
     detailsBtn.innerHTML = '📊 التفاصيل';
     detailsBtn.onclick = () => window.location.href = `clients-details.html?id=${client.id}`;
-    
+
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'btn btn-sm btn-danger';
     deleteBtn.innerHTML = '🗑️ حذف';
     deleteBtn.onclick = () => deleteClient(client.id, client.name);
-    
+
     actions.appendChild(detailsBtn);
     actions.appendChild(deleteBtn);
     header.appendChild(name);
@@ -68,11 +68,11 @@ function createClientCard(client) {
     if (client.phone) {
         const contactSection = document.createElement('div');
         contactSection.className = 'client-contact';
-        
+
         const phoneItem = document.createElement('div');
         phoneItem.className = 'contact-item';
         phoneItem.innerHTML = `<span class="contact-icon">📱</span> ${client.phone}`;
-        
+
         contactSection.appendChild(phoneItem);
         card.appendChild(contactSection);
     }
@@ -80,19 +80,19 @@ function createClientCard(client) {
     // Financial summary section
     const financialSection = document.createElement('div');
     financialSection.className = 'client-financial';
-    
+
     const balanceItem = document.createElement('div');
     balanceItem.className = 'financial-item';
-    
+
     const balanceLabel = document.createElement('span');
     balanceLabel.className = 'financial-label';
     balanceLabel.textContent = 'الرصيد الحالي:';
-    
+
     const balanceValue = document.createElement('span');
     balanceValue.className = 'financial-value';
     const balance = client.balance || 0;
     balanceValue.textContent = formatCurrency(Math.abs(balance));
-    
+
     if (balance > 0) {
         balanceValue.classList.add('text-danger');
         balanceItem.appendChild(balanceLabel);
@@ -112,36 +112,36 @@ function createClientCard(client) {
         balanceItem.appendChild(balanceValue);
         balanceItem.appendChild(document.createTextNode(' (متوازن)'));
     }
-    
+
     financialSection.appendChild(balanceItem);
     card.appendChild(financialSection);
 
     // Stats section
     const stats = document.createElement('div');
     stats.className = 'client-stats';
-    
+
     const statsItems = [
         { label: 'إجمالي التسليمات', value: formatCurrency(client.totalDeliveries || 0) },
         { label: 'إجمالي المدفوعات', value: formatCurrency(client.totalPayments || 0) }
     ];
-    
+
     statsItems.forEach(stat => {
         const statItem = document.createElement('div');
         statItem.className = 'stat-item';
-        
+
         const statLabel = document.createElement('span');
         statLabel.className = 'stat-label';
         statLabel.textContent = stat.label + ':';
-        
+
         const statValue = document.createElement('span');
         statValue.className = 'stat-value';
         statValue.textContent = stat.value;
-        
+
         statItem.appendChild(statLabel);
         statItem.appendChild(statValue);
         stats.appendChild(statItem);
     });
-    
+
     card.appendChild(stats);
     return card;
 }
@@ -247,10 +247,10 @@ async function loadClients(page = 1) {
         if (!response.ok) {
             throw new Error('فشل في تحميل بيانات العملاء');
         }
-        
+
         const result = await response.json();
-        clientsData = result.data || [];
-        
+        clientsData = result.clients || result.data || [];
+
         renderClients(clientsData);
         if (result.pagination) {
             renderPagination(result.pagination);
@@ -277,11 +277,11 @@ async function createClient(clientData) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(clientData)
     });
-    
+
     if (!response.ok) {
         throw new Error('فشل في إضافة العميل');
     }
-    
+
     return response.json();
 }
 
@@ -291,22 +291,22 @@ function setupEventHandlers() {
     document.getElementById('addClientBtn').addEventListener('click', () => {
         showModal('addClientModal');
     });
-    
+
     // Add client form
     document.getElementById('addClientForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const formData = new FormData(e.target);
         const clientData = {
             name: formData.get('name'),
             phone: formData.get('phone') || null,
             opening_balance: parseFloat(formData.get('opening_balance')) || 0
         };
-        
+
         try {
             await createClient(clientData);
             showMessage('addClientMessage', 'تم إضافة العميل بنجاح', 'success');
-            
+
             setTimeout(() => {
                 closeModal('addClientModal');
                 loadClients(currentPage);
@@ -316,23 +316,23 @@ function setupEventHandlers() {
             showMessage('addClientMessage', error.message, 'error');
         }
     });
-    
+
     // Search functionality
     const searchInput = document.getElementById('clientSearch');
     const searchBtn = document.getElementById('searchBtn');
-    
+
     searchBtn.addEventListener('click', () => {
         currentSearch = searchInput.value.trim();
         loadClients(1);
     });
-    
+
     searchInput.addEventListener('keyup', (e) => {
         if (e.key === 'Enter') {
             currentSearch = searchInput.value.trim();
             loadClients(1);
         }
     });
-    
+
     // Modal close on backdrop click
     document.querySelectorAll('.modal').forEach(modal => {
         modal.addEventListener('click', (e) => {
@@ -398,7 +398,7 @@ async function deleteClient(clientId, clientName) {
 
     } catch (error) {
         console.error('Delete client error:', error);
-        
+
         // Show error message
         Swal.fire({
             title: 'خطأ في الحذف',
@@ -421,7 +421,7 @@ window.showModal = showModal;
 window.closeModal = closeModal;
 
 // Event delegation for CSP compliance
-document.addEventListener('click', function(e) {
+document.addEventListener('click', function (e) {
     // Handle modal close buttons
     if (e.target.classList.contains('modal-close')) {
         const modal = e.target.closest('.modal');
@@ -429,7 +429,7 @@ document.addEventListener('click', function(e) {
             closeModal(modal.id);
         }
     }
-    
+
     // Handle cancel buttons in modals
     if (e.target.textContent === 'إلغاء' && e.target.classList.contains('btn-secondary')) {
         const modal = e.target.closest('.modal');

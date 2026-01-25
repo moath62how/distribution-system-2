@@ -52,9 +52,9 @@ function renderSummary(totals) {
     const balance = totals.balance || 0;
     const openingBalance = totals.openingBalance || 0;
     
-    // Balance logic: Positive = they owe us (GREEN), Negative = we owe them (RED)
+    // Balance logic: Positive = they owe us (عليه), Negative = we owe them (له)
     const balanceClass = balance > 0 ? 'text-success' : balance < 0 ? 'text-danger' : '';
-    const balanceLabel = balance > 0 ? '(عليه )' : balance < 0 ? '(له )' : '';
+    const balanceLabel = balance > 0 ? '(عليه)' : balance < 0 ? '(له)' : '';
     
     // Opening balance logic: Positive = they owe us (عليه), Negative = we owe them (له)
     const openingClass = openingBalance > 0 ? 'text-success' : openingBalance < 0 ? 'text-danger' : '';
@@ -305,9 +305,9 @@ function renderAdjustments(adjustments) {
         const amountCell = document.createElement('td');
         const amount = adjustment.amount || 0;
         
-        // Positive adjustment = for us (GREEN), Negative adjustment = against us (RED)
+        // Positive adjustment = they owe us more (عليه), Negative adjustment = we owe them (له)
         amountCell.className = amount > 0 ? 'text-success' : amount < 0 ? 'text-danger' : '';
-        const label = amount > 0 ? '(لنا)' : amount < 0 ? '(علينا)' : '';
+        const label = amount > 0 ? '(عليه)' : amount < 0 ? '(له)' : '';
         amountCell.textContent = `${formatCurrency(Math.abs(amount))} ${label}`;
         
         const cells = [

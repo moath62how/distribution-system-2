@@ -1,143 +1,0 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <title>اختبار الفاليديشن والتقارير</title>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; direction: rtl; }
-        .feature { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid #007bff; }
-        .feature h3 { margin: 0 0 10px 0; color: #007bff; }
-        .test-btn { background: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 4px; margin: 5px; cursor: pointer; }
-        .test-btn:hover { background: #218838; }
-        .status { padding: 8px; margin: 5px 0; border-radius: 4px; }
-        .success { background: #d4edda; color: #155724; }
-        .error { background: #f8d7da; color: #721c24; }
-        .info { background: #d1ecf1; color: #0c5460; }
-    </style>
-</head>
-<body>
-    <h1>🧪 اختبار الميزات الجديدة</h1>
-    
-    <div class="status success">
-        <strong>✅ تم تطبيق جميع التحديثات بنجاح!</strong>
-        <br>الخادم يعمل على المنفذ 5000 وجميع الميزات جاهزة للاختبار.
-    </div>
-    
-    <div class="feature">
-        <h3>1. فاليديشن منع تكرار الأرقام</h3>
-        <p><strong>الهدف:</strong> منع تكرار أرقام الشيكات والحوالات البنكية وأرقام البونات</p>
-        <p><strong>كيفية الاختبار:</strong></p>
-        <ul>
-            <li>أضف دفعة بشيك رقم "12345"</li>
-            <li>حاول إضافة دفعة أخرى بنفس رقم الشيك</li>
-            <li>يجب أن تظهر رسالة خطأ: "رقم الشيك 12345 مستخدم من قبل"</li>
-        </ul>
-        <button class="test-btn" onclick="window.open('backend/public/clients-details.html?id=1', '_blank')">اختبار الفاليديشن</button>
-    </div>
-    
-    <div class="feature">
-        <h3>2. عرض صور المدفوعات</h3>
-        <p><strong>الهدف:</strong> إمكانية عرض صور الإيصالات والشيكات المرفوعة</p>
-        <p><strong>كيفية الاختبار:</strong></p>
-        <ul>
-            <li>أضف دفعة بطريقة "بنكي" أو "شيك"</li>
-            <li>ارفع صورة للإيصال</li>
-            <li>احفظ الدفعة</li>
-            <li>ابحث عن زر "🖼️ عرض" في جدول المدفوعات</li>
-            <li>انقر عليه لعرض الصورة</li>
-        </ul>
-        <button class="test-btn" onclick="window.open('backend/public/clients-details.html?id=1', '_blank')">اختبار عرض الصور</button>
-    </div>
-    
-    <div class="feature">
-        <h3>3. تقرير التوريدات PDF</h3>
-        <p><strong>الهدف:</strong> إنشاء تقرير مفصل بالكميات المورده حسب نوع المادة</p>
-        <p><strong>المحتوى:</strong></p>
-        <ul>
-            <li>ملخص المواد (الكمية الإجمالية لكل مادة)</li>
-            <li>جدول تفصيلي بجميع التسليمات</li>
-            <li>قابل للطباعة مع تصميم احترافي</li>
-        </ul>
-        <button class="test-btn" onclick="testDeliveriesReport()">اختبار تقرير التوريدات</button>
-    </div>
-    
-    <div class="feature">
-        <h3>4. كشف حساب العميل PDF</h3>
-        <p><strong>الهدف:</strong> كشف حساب شامل بجميع المعاملات والرصيد</p>
-        <p><strong>المحتوى:</strong></p>
-        <ul>
-            <li>ملخص الحساب (رصيد افتتاحي، توريدات، مدفوعات، تعديلات)</li>
-            <li>جداول مفصلة لكل نوع معاملة</li>
-            <li>ألوان واضحة (أخضر = لنا، أحمر = علينا)</li>
-        </ul>
-        <button class="test-btn" onclick="testAccountStatement()">اختبار كشف الحساب</button>
-    </div>
-    
-    <div class="feature">
-        <h3>5. اختبار شامل</h3>
-        <p><strong>الهدف:</strong> اختبار جميع الميزات في صفحة واحدة</p>
-        <button class="test-btn" onclick="window.open('backend/public/clients-details.html?id=1', '_blank')">فتح صفحة تفاصيل العميل</button>
-        <button class="test-btn" onclick="window.open('backend/public/clients.html', '_blank')">فتح صفحة العملاء</button>
-    </div>
-    
-    <div id="testResults"></div>
-    
-    <script>
-        function testDeliveriesReport() {
-            const fromDate = '2024-01-01';
-            const toDate = '2024-12-31';
-            const url = `http://localhost:5000/api/clients/1/reports/deliveries?from=${fromDate}&to=${toDate}`;
-            window.open(url, '_blank');
-            
-            document.getElementById('testResults').innerHTML = `
-                <div class="status info">
-                    <strong>📄 تم فتح تقرير التوريدات</strong><br>
-                    الفترة: من ${fromDate} إلى ${toDate}<br>
-                    إذا لم يفتح التقرير، تأكد من أن الخادم يعمل وأن هناك بيانات للعميل رقم 1
-                </div>
-            `;
-        }
-        
-        function testAccountStatement() {
-            const fromDate = '2024-01-01';
-            const toDate = '2024-12-31';
-            const url = `http://localhost:5000/api/clients/1/reports/statement?from=${fromDate}&to=${toDate}`;
-            window.open(url, '_blank');
-            
-            document.getElementById('testResults').innerHTML = `
-                <div class="status info">
-                    <strong>📊 تم فتح كشف حساب العميل</strong><br>
-                    الفترة: من ${fromDate} إلى ${toDate}<br>
-                    إذا لم يفتح الكشف، تأكد من أن الخادم يعمل وأن هناك بيانات للعميل رقم 1
-                </div>
-            `;
-        }
-        
-        // Test server connection on page load
-        window.onload = async function() {
-            try {
-                const response = await fetch('http://localhost:5000/api/clients');
-                if (response.ok) {
-                    const data = await response.json();
-                    document.getElementById('testResults').innerHTML = `
-                        <div class="status success">
-                            <strong>✅ الخادم متصل ويعمل بشكل صحيح!</strong><br>
-                            تم العثور على ${data.data ? data.data.length : 0} عميل في النظام
-                        </div>
-                    `;
-                } else {
-                    throw new Error('Server error: ' + response.status);
-                }
-            } catch (error) {
-                document.getElementById('testResults').innerHTML = `
-                    <div class="status error">
-                        <strong>❌ خطأ في الاتصال بالخادم</strong><br>
-                        ${error.message}<br>
-                        تأكد من تشغيل الخادم على المنفذ 5000
-                    </div>
-                `;
-            }
-        };
-    </script>
-</body>
-</html>

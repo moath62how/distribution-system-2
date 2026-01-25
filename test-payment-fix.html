@@ -1,90 +1,0 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <title>اختبار إصلاح المدفوعات</title>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; direction: rtl; }
-        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
-        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
-        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        button:hover { background: #0056b3; }
-    </style>
-</head>
-<body>
-    <h1>اختبار إصلاح مشاكل المدفوعات</h1>
-    
-    <div class="status info">
-        <h3>✅ الإصلاحات المطبقة:</h3>
-        <ul>
-            <li>إضافة عمود payment_image لقاعدة البيانات</li>
-            <li>إصلاح معالج الأخطاء في الخادم</li>
-            <li>تحسين معالجة رفع الصور</li>
-            <li>إعادة تشغيل الخادم</li>
-        </ul>
-    </div>
-    
-    <div class="status success">
-        <h3>🚀 الخادم جاهز!</h3>
-        <p>الخادم يعمل على المنفذ 5000 ومعالج الأخطاء محدث</p>
-    </div>
-    
-    <h2>اختبار الوظائف:</h2>
-    
-    <button onclick="testServer()">اختبار الخادم</button>
-    <button onclick="window.open('backend/public/clients-details.html?id=1', '_blank')">فتح صفحة تفاصيل العميل</button>
-    <button onclick="window.open('backend/public/clients.html', '_blank')">فتح صفحة العملاء</button>
-    
-    <div id="testResults"></div>
-    
-    <h2>خطوات الاختبار:</h2>
-    <ol>
-        <li>افتح صفحة تفاصيل العميل</li>
-        <li>انقر على "إضافة دفعة"</li>
-        <li>اختر طريقة دفع "بنكي" أو "شيك"</li>
-        <li>تأكد من ظهور حقل رفع الصورة</li>
-        <li>املأ البيانات وارفع صورة</li>
-        <li>احفظ وتأكد من عدم ظهور أخطاء</li>
-        <li>تأكد من مسح النموذج بعد الحفظ</li>
-    </ol>
-    
-    <script>
-        async function testServer() {
-            const resultsDiv = document.getElementById('testResults');
-            resultsDiv.innerHTML = '<div class="status info">جاري اختبار الخادم...</div>';
-            
-            try {
-                const response = await fetch('http://localhost:5000/api/clients');
-                if (response.ok) {
-                    const data = await response.json();
-                    resultsDiv.innerHTML = `
-                        <div class="status success">
-                            <h3>✅ الخادم يعمل بشكل صحيح!</h3>
-                            <p>تم العثور على ${data.data ? data.data.length : 0} عميل</p>
-                        </div>
-                    `;
-                } else {
-                    resultsDiv.innerHTML = `
-                        <div class="status error">
-                            <h3>❌ خطأ في الخادم</h3>
-                            <p>كود الخطأ: ${response.status}</p>
-                        </div>
-                    `;
-                }
-            } catch (error) {
-                resultsDiv.innerHTML = `
-                    <div class="status error">
-                        <h3>❌ فشل في الاتصال بالخادم</h3>
-                        <p>${error.message}</p>
-                    </div>
-                `;
-            }
-        }
-        
-        // Test server on page load
-        window.onload = testServer;
-    </script>
-</body>
-</html>

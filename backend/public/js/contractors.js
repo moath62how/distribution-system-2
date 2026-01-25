@@ -32,24 +32,24 @@ function createContractorCard(contractor) {
     // Header with name and actions
     const header = document.createElement('div');
     header.className = 'contractor-header';
-    
+
     const name = document.createElement('h3');
     name.className = 'contractor-name';
     name.textContent = contractor.name || "—";
-    
+
     const actions = document.createElement('div');
     actions.className = 'contractor-actions';
-    
+
     const detailsBtn = document.createElement('button');
     detailsBtn.className = 'btn btn-sm btn-primary';
     detailsBtn.innerHTML = '📊 التفاصيل';
     detailsBtn.onclick = () => window.location.href = `contractor-details.html?id=${contractor.id}`;
-    
+
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'btn btn-sm btn-danger';
     deleteBtn.innerHTML = '🗑️ حذف';
     deleteBtn.onclick = () => deleteContractor(contractor.id, contractor.name);
-    
+
     actions.appendChild(detailsBtn);
     actions.appendChild(deleteBtn);
     header.appendChild(name);
@@ -59,19 +59,19 @@ function createContractorCard(contractor) {
     // Financial summary section
     const financialSection = document.createElement('div');
     financialSection.className = 'contractor-financial';
-    
+
     const balanceItem = document.createElement('div');
     balanceItem.className = 'financial-item';
-    
+
     const balanceLabel = document.createElement('span');
     balanceLabel.className = 'financial-label';
     balanceLabel.textContent = 'الرصيد الحالي:';
-    
+
     const balanceValue = document.createElement('span');
     balanceValue.className = 'financial-value contractor-balance';
     const balance = contractor.balance || 0;
     balanceValue.textContent = formatCurrency(Math.abs(balance));
-    
+
     if (balance > 0) {
         balanceValue.classList.add('positive');
         balanceItem.appendChild(balanceLabel);
@@ -91,39 +91,39 @@ function createContractorCard(contractor) {
         balanceItem.appendChild(balanceValue);
         balanceItem.appendChild(document.createTextNode(' (متوازن)'));
     }
-    
+
     financialSection.appendChild(balanceItem);
     card.appendChild(financialSection);
 
     // Stats section (placeholder for future stats)
     const stats = document.createElement('div');
     stats.className = 'contractor-stats';
-    
+
     // Add some basic stats if available
     if (contractor.totalTrips !== undefined || contractor.totalPayments !== undefined) {
         const statsItems = [
             { label: 'إجمالي التسليمات', value: formatCurrency(contractor.totalTrips || 0) },
             { label: 'إجمالي المدفوعات', value: formatCurrency(contractor.totalPayments || 0) }
         ];
-        
+
         statsItems.forEach(stat => {
             const statItem = document.createElement('div');
             statItem.className = 'stat-item';
-            
+
             const statLabel = document.createElement('span');
             statLabel.className = 'stat-label';
             statLabel.textContent = stat.label + ':';
-            
+
             const statValue = document.createElement('span');
             statValue.className = 'stat-value';
             statValue.textContent = stat.value;
-            
+
             statItem.appendChild(statLabel);
             statItem.appendChild(statValue);
             stats.appendChild(statItem);
         });
     }
-    
+
     card.appendChild(stats);
     return card;
 }
@@ -155,7 +155,9 @@ function renderContractors(contractors) {
 async function fetchContractors() {
     const resp = await fetch(`${API_BASE}/contractors`);
     if (!resp.ok) throw new Error('تعذر تحميل المقاولين');
-    return resp.json();
+    const data = await resp.json();
+    // Handle both old format (direct array) and new format (object with contractors property)
+    return data.contractors || data;
 }
 
 // Delete contractor function
@@ -213,7 +215,7 @@ async function deleteContractor(contractorId, contractorName) {
 
     } catch (error) {
         console.error('Delete contractor error:', error);
-        
+
         // Show error message
         Swal.fire({
             title: 'خطأ في الحذف',

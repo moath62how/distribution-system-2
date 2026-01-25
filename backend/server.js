@@ -5,27 +5,44 @@ const session = require('express-session');
 const flash = require('connect-flash');
 const morgan = require('morgan');
 const cors = require('cors');
-const db = require('./db');
+const { ensureTables } = require('./db');
+const {
+  Client,
+  Crusher,
+  Contractor,
+  Delivery,
+  Payment,
+  ContractorPayment,
+  CrusherPayment,
+  Expense
+} = require('./models');
 
-// Import API routes (keep for backward compatibility if needed)
-const clientsApiRouter = require('./routes/clients');
-const crushersApiRouter = require('./routes/crushers');
-const contractorsApiRouter = require('./routes/contractors');
-const deliveriesApiRouter = require('./routes/deliveries');
-const expensesApiRouter = require('./routes/expenses');
+// Import API routes (refactored with MVC architecture)
+const clientsApiRouter = require('./routes/clients-refactored');
+const crushersApiRouter = require('./routes/crushers-refactored');
+const contractorsApiRouter = require('./routes/contractors-refactored');
+const deliveriesApiRouter = require('./routes/deliveries-refactored');
+const expensesApiRouter = require('./routes/expenses-refactored');
+
+// Import old routes for backward compatibility (v1)
+const clientsApiRouterV1 = require('./routes/clients');
+const crushersApiRouterV1 = require('./routes/crushers');
+const contractorsApiRouterV1 = require('./routes/contractors');
+const deliveriesApiRouterV1 = require('./routes/deliveries');
+const expensesApiRouterV1 = require('./routes/expenses');
 
 // Import Web routes (SSR)
 const webRouter = require('./routes/web');
 
 async function bootstrap() {
-  await db.ensureTables();
+  await ensureTables();
 
   const app = express();
   app.use(morgan('dev'));
-  
+
   // Enable CORS for all routes
   app.use(cors());
-  
+
   // View engine setup
   app.set('view engine', 'pug');
   app.set('views', path.join(__dirname, 'views'));
@@ -60,53 +77,69 @@ async function bootstrap() {
   // Web routes (SSR with Pug)
   //// app.use('/', webRouter);
 
-  // API routes (keep for backward compatibility or mobile apps)
+  // API routes (refactored MVC architecture)
   app.use('/api/clients', clientsApiRouter);
   app.use('/api/crushers', crushersApiRouter);
   app.use('/api/contractors', contractorsApiRouter);
   app.use('/api/deliveries', deliveriesApiRouter);
   app.use('/api/expenses', expensesApiRouter);
 
-  // API metrics endpoint
+  // API routes v1 (legacy - for backward compatibility)
+  app.use('/api/v1/clients', clientsApiRouterV1);
+  app.use('/api/v1/crushers', crushersApiRouterV1);
+  app.use('/api/v1/contractors', contractorsApiRouterV1);
+  app.use('/api/v1/deliveries', deliveriesApiRouterV1);
+  app.use('/api/v1/expenses', expensesApiRouterV1);
+
+  // API metrics endpoint - Updated for MongoDB
   app.get('/api/metrics', async (req, res, next) => {
     try {
-      const [{ count: clientsCount }] = await db('clients').count({ count: 'id' });
-      const [{ count: crushersCount }] = await db('crushers').count({ count: 'id' });
-      const [{ count: contractorsCount }] = await db('contractors').count({ count: 'id' });
-      const [{ count: deliveriesCount }] = await db('deliveries').count({ count: 'id' });
-      
+      const clientsCount = await Client.countDocuments();
+      const crushersCount = await Crusher.countDocuments();
+      const contractorsCount = await Contractor.countDocuments();
+      const deliveriesCount = await Delivery.countDocuments();
+
       // Get all deliveries for proper calculations
-      const deliveries = await db('deliveries').select('*');
-      
+      const deliveries = await Delivery.find();
+
       // CORRECT FINANCIAL LOGIC:
-      
+
       // 1. Total Sales (Revenue from clients - what clients owe us)
       const totalSales = deliveries.reduce((sum, d) => sum + Number(d.total_value || 0), 0);
-      
+
       // 2. Total Crusher Costs (what we owe crushers - using historical prices)
       const totalCrusherCosts = deliveries.reduce((sum, d) => {
         const netQuantity = Number(d.car_volume || 0) - Number(d.discount_volume || 0);
         const materialPrice = Number(d.material_price_at_time || 0); // Use historical price stored in delivery
         return sum + (netQuantity * materialPrice);
       }, 0);
-      
+
       // 3. Total Contractor Costs (what we owe contractors)
       const totalContractorCosts = deliveries.reduce((sum, d) => sum + Number(d.contractor_total_charge || 0), 0);
-      
+
       // 4. Operating expenses
-      const [{ sum: operatingExpenses }] = await db('expenses').sum({ sum: 'amount' });
-      
+      const expenseAgg = await Expense.aggregate([
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]);
+      const operatingExpenses = expenseAgg.length > 0 ? expenseAgg[0].total : 0;
+
       // 5. Total Expenses (all costs)
       const totalExpenses = totalCrusherCosts + totalContractorCosts + Number(operatingExpenses || 0);
-      
+
       // 6. Net Profit (sales - all expenses)
       const netProfit = totalSales - totalExpenses;
-      
+
       // 7. Cash flow tracking (actual payments made/received)
-      const [{ sum: clientPayments }] = await db('payments').sum({ sum: 'amount' });
-      const [{ sum: contractorPayments }] = await db('contractor_payments').sum({ sum: 'amount' });
-      const [{ sum: crusherPayments }] = await db('crusher_payments').sum({ sum: 'amount' });
-      
+      const [clientPaymentsAgg, contractorPaymentsAgg, crusherPaymentsAgg] = await Promise.all([
+        Payment.aggregate([{ $group: { _id: null, total: { $sum: '$amount' } } }]),
+        ContractorPayment.aggregate([{ $group: { _id: null, total: { $sum: '$amount' } } }]),
+        CrusherPayment.aggregate([{ $group: { _id: null, total: { $sum: '$amount' } } }])
+      ]);
+
+      const clientPayments = clientPaymentsAgg.length > 0 ? clientPaymentsAgg[0].total : 0;
+      const contractorPayments = contractorPaymentsAgg.length > 0 ? contractorPaymentsAgg[0].total : 0;
+      const crusherPayments = crusherPaymentsAgg.length > 0 ? crusherPaymentsAgg[0].total : 0;
+
       const totalCashPayments = Number(clientPayments || 0) + Number(contractorPayments || 0) + Number(crusherPayments || 0);
 
       res.json({
@@ -114,7 +147,7 @@ async function bootstrap() {
         totalCrushers: Number(crushersCount || 0),
         totalContractors: Number(contractorsCount || 0),
         totalDeliveries: Number(deliveriesCount || 0),
-        
+
         // Revenue & Costs
         totalSales: Number(totalSales || 0),
         totalCrusherCosts: Number(totalCrusherCosts || 0),
@@ -122,7 +155,7 @@ async function bootstrap() {
         operatingExpenses: Number(operatingExpenses || 0),
         totalExpenses: Number(totalExpenses || 0),
         netProfit: Number(netProfit || 0),
-        
+
         // Cash Flow
         totalClientPayments: Number(clientPayments || 0),
         totalContractorPayments: Number(contractorPayments || 0),
@@ -145,7 +178,7 @@ async function bootstrap() {
   // Error handler
   app.use((err, req, res, next) => {
     console.error('Error:', err);
-    
+
     // Check if this is an API request
     if (req.path.startsWith('/api/')) {
       return res.status(500).json({
@@ -153,7 +186,7 @@ async function bootstrap() {
         error: process.env.NODE_ENV === 'development' ? err.message : 'Internal Server Error'
       });
     }
-    
+
     // For web requests, render error page
     res.status(500).render('error', {
       title: 'خطأ',

@@ -1,144 +1,99 @@
 const express = require('express');
-const db = require('../db');
+const { Expense } = require('../models');
 
 const router = express.Router();
 
 const toNumber = (v) => Number(v || 0);
 
-// Expense categories
-const EXPENSE_CATEGORIES = [
-    'وقود',
-    'صيانة',
-    'رواتب',
-    'إيجار',
-    'كهرباء',
-    'مياه',
-    'اتصالات',
-    'مواد خام',
-    'نقل',
-    'تأمين',
-    'ضرائب',
-    'أخرى'
-];
-
-// Get all expenses with filtering and sorting
-router.get('/', async (req, res, next) => {
+// Get expense statistics
+router.get('/stats', async (req, res, next) => {
     try {
-        const { 
-            category, 
-            start_date, 
-            end_date, 
-            sort = 'date-desc',
-            page = 1,
-            limit = 50 
-        } = req.query;
+        const expenses = await Expense.find();
 
-        let query = db('expenses').select('*');
+        // Calculate total expenses
+        const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
 
-        // Apply filters
-        if (category && category !== 'all') {
-            query = query.where('category', category);
+        // Group by category
+        const byCategory = expenses.reduce((acc, expense) => {
+            acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
+            return acc;
+        }, {});
+
+        // Monthly trend (last 12 months)
+        const now = new Date();
+        const monthlyTrend = [];
+
+        for (let i = 11; i >= 0; i--) {
+            const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const nextDate = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+
+            const monthExpenses = expenses.filter(expense =>
+                expense.expense_date >= date && expense.expense_date < nextDate
+            );
+
+            const total = monthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+
+            monthlyTrend.push({
+                month: date.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long' }),
+                total: total
+            });
         }
-
-        if (start_date) {
-            query = query.where('expense_date', '>=', start_date);
-        }
-
-        if (end_date) {
-            query = query.where('expense_date', '<=', end_date);
-        }
-
-        // Apply sorting
-        switch (sort) {
-            case 'date-asc':
-                query = query.orderBy('expense_date', 'asc');
-                break;
-            case 'date-desc':
-                query = query.orderBy('expense_date', 'desc');
-                break;
-            case 'amount-asc':
-                query = query.orderBy('amount', 'asc');
-                break;
-            case 'amount-desc':
-                query = query.orderBy('amount', 'desc');
-                break;
-            default:
-                query = query.orderBy('expense_date', 'desc');
-        }
-
-        // Apply pagination
-        const offset = (page - 1) * limit;
-        const expenses = await query.limit(limit).offset(offset);
-
-        // Get total count for pagination
-        let countQuery = db('expenses').count('* as count');
-        if (category && category !== 'all') {
-            countQuery = countQuery.where('category', category);
-        }
-        if (start_date) {
-            countQuery = countQuery.where('expense_date', '>=', start_date);
-        }
-        if (end_date) {
-            countQuery = countQuery.where('expense_date', '<=', end_date);
-        }
-
-        const [{ count }] = await countQuery;
-        const totalPages = Math.ceil(count / limit);
 
         res.json({
-            data: expenses,
-            pagination: {
-                page: parseInt(page),
-                limit: parseInt(limit),
-                total: parseInt(count),
-                pages: totalPages
-            },
-            categories: EXPENSE_CATEGORIES
+            totalExpenses,
+            byCategory,
+            monthlyTrend,
+            count: expenses.length
         });
     } catch (err) {
         next(err);
     }
 });
 
-// Get expense statistics
-router.get('/stats', async (req, res, next) => {
+// Get all expenses
+router.get('/', async (req, res, next) => {
     try {
-        const { start_date, end_date } = req.query;
+        const expenses = await Expense.find().sort({ expense_date: -1 });
 
-        let query = db('expenses');
-        
-        if (start_date) {
-            query = query.where('expense_date', '>=', start_date);
+        const result = expenses.map(expense => ({
+            id: expense._id,
+            expense_date: expense.expense_date,
+            category: expense.category,
+            description: expense.description,
+            amount: expense.amount,
+            notes: expense.notes,
+            method: expense.method,
+            details: expense.details,
+            created_at: expense.created_at,
+            updated_at: expense.updated_at
+        }));
+
+        res.json({ expenses: result });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// Get expense by ID
+router.get('/:id', async (req, res, next) => {
+    try {
+        const expense = await Expense.findById(req.params.id);
+
+        if (!expense) {
+            return res.status(404).json({ message: 'المصروف غير موجود' });
         }
-        
-        if (end_date) {
-            query = query.where('expense_date', '<=', end_date);
-        }
-
-        // Total expenses
-        const [{ total }] = await query.clone().sum('amount as total');
-
-        // Expenses by category
-        const categoryStats = await query.clone()
-            .select('category')
-            .sum('amount as total')
-            .groupBy('category')
-            .orderBy('total', 'desc');
-
-        // Monthly expenses (last 12 months) - Using Knex query builder for better compatibility
-        const monthlyStats = await db('expenses')
-            .select(db.raw("strftime('%Y-%m', expense_date) as month"))
-            .sum('amount as total')
-            .count('* as count')
-            .where('expense_date', '>=', db.raw("date('now', '-12 months')"))
-            .groupBy(db.raw("strftime('%Y-%m', expense_date)"))
-            .orderBy('month', 'desc');
 
         res.json({
-            totalExpenses: toNumber(total),
-            categoryBreakdown: categoryStats,
-            monthlyTrend: monthlyStats,
-            categories: EXPENSE_CATEGORIES
+            id: expense._id,
+            expense_date: expense.expense_date,
+            category: expense.category,
+            description: expense.description,
+            amount: expense.amount,
+            notes: expense.notes,
+            method: expense.method,
+            details: expense.details,
+            created_at: expense.created_at,
+            updated_at: expense.updated_at
         });
     } catch (err) {
         next(err);
@@ -148,62 +103,36 @@ router.get('/stats', async (req, res, next) => {
 // Create new expense
 router.post('/', async (req, res, next) => {
     try {
-        const { expense_date, category, description, amount, notes } = req.body;
+        const { expense_date, category, description, amount, notes, method, details } = req.body;
 
-        // Validation
         if (!expense_date || !category || !description || !amount) {
-            return res.status(400).json({ 
-                message: 'التاريخ والفئة والوصف والمبلغ مطلوبة' 
-            });
+            return res.status(400).json({ message: 'التاريخ والفئة والوصف والمبلغ مطلوبة' });
         }
 
-        if (isNaN(amount) || Number(amount) <= 0) {
-            return res.status(400).json({ 
-                message: 'المبلغ يجب أن يكون رقم موجب' 
-            });
-        }
-
-        if (!EXPENSE_CATEGORIES.includes(category)) {
-            return res.status(400).json({ 
-                message: 'فئة المصروف غير صالحة' 
-            });
-        }
-
-        // Validate date format
-        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (!dateRegex.test(expense_date)) {
-            return res.status(400).json({ 
-                message: 'تنسيق التاريخ غير صالح' 
-            });
-        }
-
-        const [id] = await db('expenses').insert({
-            expense_date,
-            category,
+        const expense = new Expense({
+            expense_date: new Date(expense_date),
+            category: category.trim(),
             description: description.trim(),
             amount: toNumber(amount),
-            notes: notes ? notes.trim() : null,
-            created_at: db.fn.now()
+            notes: notes?.trim() || '',
+            method: method?.trim() || '',
+            details: details?.trim() || ''
         });
 
-        const expense = await db('expenses').where({ id }).first();
-        res.status(201).json(expense);
-    } catch (err) {
-        next(err);
-    }
-});
+        await expense.save();
 
-// Get single expense
-router.get('/:id', async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const expense = await db('expenses').where({ id }).first();
-        
-        if (!expense) {
-            return res.status(404).json({ message: 'المصروف غير موجود' });
-        }
-
-        res.json(expense);
+        res.status(201).json({
+            id: expense._id,
+            expense_date: expense.expense_date,
+            category: expense.category,
+            description: expense.description,
+            amount: expense.amount,
+            notes: expense.notes,
+            method: expense.method,
+            details: expense.details,
+            created_at: expense.created_at,
+            updated_at: expense.updated_at
+        });
     } catch (err) {
         next(err);
     }
@@ -212,44 +141,42 @@ router.get('/:id', async (req, res, next) => {
 // Update expense
 router.put('/:id', async (req, res, next) => {
     try {
-        const { id } = req.params;
-        const { expense_date, category, description, amount, notes } = req.body;
+        const { expense_date, category, description, amount, notes, method, details } = req.body;
 
-        const expense = await db('expenses').where({ id }).first();
+        if (!expense_date || !category || !description || !amount) {
+            return res.status(400).json({ message: 'التاريخ والفئة والوصف والمبلغ مطلوبة' });
+        }
+
+        const expense = await Expense.findByIdAndUpdate(
+            req.params.id,
+            {
+                expense_date: new Date(expense_date),
+                category: category.trim(),
+                description: description.trim(),
+                amount: toNumber(amount),
+                notes: notes?.trim() || '',
+                method: method?.trim() || '',
+                details: details?.trim() || ''
+            },
+            { new: true }
+        );
+
         if (!expense) {
             return res.status(404).json({ message: 'المصروف غير موجود' });
         }
 
-        // Validation
-        if (!expense_date || !category || !description || !amount) {
-            return res.status(400).json({ 
-                message: 'التاريخ والفئة والوصف والمبلغ مطلوبة' 
-            });
-        }
-
-        if (isNaN(amount) || Number(amount) <= 0) {
-            return res.status(400).json({ 
-                message: 'المبلغ يجب أن يكون رقم موجب' 
-            });
-        }
-
-        if (!EXPENSE_CATEGORIES.includes(category)) {
-            return res.status(400).json({ 
-                message: 'فئة المصروف غير صالحة' 
-            });
-        }
-
-        await db('expenses').where({ id }).update({
-            expense_date,
-            category,
-            description: description.trim(),
-            amount: toNumber(amount),
-            notes: notes ? notes.trim() : null,
-            updated_at: db.fn.now()
+        res.json({
+            id: expense._id,
+            expense_date: expense.expense_date,
+            category: expense.category,
+            description: expense.description,
+            amount: expense.amount,
+            notes: expense.notes,
+            method: expense.method,
+            details: expense.details,
+            created_at: expense.created_at,
+            updated_at: expense.updated_at
         });
-
-        const updatedExpense = await db('expenses').where({ id }).first();
-        res.json(updatedExpense);
     } catch (err) {
         next(err);
     }
@@ -258,14 +185,12 @@ router.put('/:id', async (req, res, next) => {
 // Delete expense
 router.delete('/:id', async (req, res, next) => {
     try {
-        const { id } = req.params;
-        
-        const expense = await db('expenses').where({ id }).first();
+        const expense = await Expense.findByIdAndDelete(req.params.id);
+
         if (!expense) {
             return res.status(404).json({ message: 'المصروف غير موجود' });
         }
 
-        await db('expenses').where({ id }).del();
         res.json({ message: 'تم حذف المصروف بنجاح' });
     } catch (err) {
         next(err);

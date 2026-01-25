@@ -37,29 +37,29 @@ function createCrusherCard(crusher) {
     // Header with name and actions
     const header = document.createElement('div');
     header.className = 'crusher-header';
-    
+
     const name = document.createElement('h3');
     name.className = 'crusher-name';
     name.textContent = crusher.name;
-    
+
     const actions = document.createElement('div');
     actions.className = 'crusher-actions';
-    
+
     const editPricesBtn = document.createElement('button');
     editPricesBtn.className = 'btn btn-sm btn-secondary';
     editPricesBtn.innerHTML = '💰 تعديل الأسعار';
     editPricesBtn.onclick = () => openEditPricesModal(crusher);
-    
+
     const detailsBtn = document.createElement('button');
     detailsBtn.className = 'btn btn-sm btn-primary';
     detailsBtn.innerHTML = '📊 التفاصيل';
     detailsBtn.onclick = () => window.location.href = `crusher-details.html?id=${crusher.id}`;
-    
+
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'btn btn-sm btn-danger';
     deleteBtn.innerHTML = '🗑️ حذف';
     deleteBtn.onclick = () => deleteCrusher(crusher.id, crusher.name);
-    
+
     actions.appendChild(editPricesBtn);
     actions.appendChild(detailsBtn);
     actions.appendChild(deleteBtn);
@@ -70,71 +70,73 @@ function createCrusherCard(crusher) {
     // Material prices section
     const pricesSection = document.createElement('div');
     pricesSection.className = 'material-prices';
-    
+
     const pricesTitle = document.createElement('h4');
     pricesTitle.textContent = 'أسعار المواد (جنيه/م³)';
     pricesSection.appendChild(pricesTitle);
-    
+
     const pricesGrid = document.createElement('div');
     pricesGrid.className = 'prices-grid';
-    
+
     const materials = [
         { key: 'sand_price', label: 'رمل', value: crusher.sand_price },
         { key: 'aggregate1_price', label: 'سن 1', value: crusher.aggregate1_price },
         { key: 'aggregate2_price', label: 'سن 2', value: crusher.aggregate2_price },
         { key: 'aggregate3_price', label: 'سن 3', value: crusher.aggregate3_price }
     ];
-    
+
     materials.forEach(material => {
         const priceItem = document.createElement('div');
         priceItem.className = 'price-item';
-        
+
         const label = document.createElement('span');
         label.className = 'price-label';
         label.textContent = material.label;
-        
+
         const value = document.createElement('span');
         value.className = 'price-value';
         value.textContent = material.value > 0 ? formatCurrency(material.value) : 'غير محدد';
         if (material.value <= 0) value.classList.add('not-set');
-        
+
         priceItem.appendChild(label);
         priceItem.appendChild(value);
         pricesGrid.appendChild(priceItem);
     });
-    
+
     pricesSection.appendChild(pricesGrid);
     card.appendChild(pricesSection);
 
     // Summary section
     const summary = document.createElement('div');
     summary.className = 'crusher-summary';
-    
+
     const stats = [
         { label: 'إجمالي الكمية', value: formatQuantity(crusher.totalVolume) + ' م³' },
         { label: 'عدد التسليمات', value: crusher.deliveriesCount || 0 },
-        { label: 'الرصيد', value: formatCurrency(Math.abs(crusher.net || 0)), 
-          class: crusher.net > 0 ? 'text-danger' : crusher.net < 0 ? 'text-success' : '' }
+        {
+            label: 'الرصيد', value: formatCurrency(Math.abs(crusher.net || 0)),
+            class: crusher.net > 0 ? 'text-danger' : crusher.net < 0 ? 'text-success' : ''
+        }
     ];
-    
+
     stats.forEach(stat => {
         const statItem = document.createElement('div');
         statItem.className = 'stat-item';
         if (stat.class) statItem.classList.add(stat.class);
-        
+
         const statLabel = document.createElement('span');
         statLabel.className = 'stat-label';
         statLabel.textContent = stat.label + ':';
-        
+
         const statValue = document.createElement('span');
         statValue.className = 'stat-value';
         statValue.textContent = stat.value;
-        
+
         statItem.appendChild(statLabel);
         statItem.appendChild(statValue);
         summary.appendChild(statItem);
     });
-    
+
     card.appendChild(summary);
     return card;
 }
@@ -204,7 +206,9 @@ async function fetchCrushers() {
     if (!response.ok) {
         throw new Error('فشل في تحميل بيانات الكسارات');
     }
-    return response.json();
+    const data = await response.json();
+    // Handle both old format (direct array) and new format (object with crushers property)
+    return data.crushers || data;
 }
 
 async function createCrusher(crusherData) {
@@ -213,11 +217,11 @@ async function createCrusher(crusherData) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(crusherData)
     });
-    
+
     if (!response.ok) {
         throw new Error('فشل في إضافة الكسارة');
     }
-    
+
     return response.json();
 }
 
@@ -227,11 +231,11 @@ async function updateCrusherPrices(crusherId, pricesData) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(pricesData)
     });
-    
+
     if (!response.ok) {
         throw new Error('فشل في تحديث الأسعار');
     }
-    
+
     return response.json();
 }
 
@@ -241,11 +245,11 @@ function setupEventHandlers() {
     document.getElementById('addCrusherBtn').addEventListener('click', () => {
         showModal('addCrusherModal');
     });
-    
+
     // Add crusher form
     document.getElementById('addCrusherForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const formData = new FormData(e.target);
         const crusherData = {
             name: formData.get('name'),
@@ -254,11 +258,11 @@ function setupEventHandlers() {
             aggregate2_price: parseFloat(formData.get('aggregate2_price')) || 0,
             aggregate3_price: parseFloat(formData.get('aggregate3_price')) || 0
         };
-        
+
         try {
             await createCrusher(crusherData);
             showMessage('addCrusherMessage', 'تم إضافة الكسارة بنجاح', 'success');
-            
+
             setTimeout(() => {
                 closeModal('addCrusherModal');
                 loadCrushers();
@@ -268,11 +272,11 @@ function setupEventHandlers() {
             showMessage('addCrusherMessage', error.message, 'error');
         }
     });
-    
+
     // Edit prices form
     document.getElementById('editPricesForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const crusherId = document.getElementById('editCrusherId').value;
         const formData = new FormData(e.target);
         const pricesData = {
@@ -281,11 +285,11 @@ function setupEventHandlers() {
             aggregate2_price: parseFloat(formData.get('aggregate2_price')) || 0,
             aggregate3_price: parseFloat(formData.get('aggregate3_price')) || 0
         };
-        
+
         try {
             await updateCrusherPrices(crusherId, pricesData);
             showMessage('editPricesMessage', 'تم تحديث الأسعار بنجاح', 'success');
-            
+
             setTimeout(() => {
                 closeModal('editPricesModal');
                 loadCrushers();
@@ -294,7 +298,7 @@ function setupEventHandlers() {
             showMessage('editPricesMessage', error.message, 'error');
         }
     });
-    
+
     // Modal close on backdrop click
     document.querySelectorAll('.modal').forEach(modal => {
         modal.addEventListener('click', (e) => {
@@ -379,7 +383,7 @@ async function deleteCrusher(crusherId, crusherName) {
 
     } catch (error) {
         console.error('Delete crusher error:', error);
-        
+
         // Show error message
         Swal.fire({
             title: 'خطأ في الحذف',

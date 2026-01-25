@@ -64,7 +64,7 @@ async function loadExpenses(page = 1, filters = {}) {
         const params = new URLSearchParams();
         params.set('page', page);
         params.set('limit', 20);
-        
+
         Object.keys(filters).forEach(key => {
             if (filters[key] && filters[key] !== 'all') {
                 params.set(key, filters[key]);
@@ -77,16 +77,16 @@ async function loadExpenses(page = 1, filters = {}) {
         }
 
         const data = await response.json();
-        
+
         // Store categories for dropdowns
         if (data.categories) {
             expenseCategories = data.categories;
             populateCategories();
         }
 
-        renderExpenses(data.data);
+        renderExpenses(data.expenses || data.data || []);
         renderPagination(data.pagination);
-        
+
         return data;
     } catch (error) {
         console.error('Error loading expenses:', error);
@@ -102,7 +102,7 @@ async function loadExpenses(page = 1, filters = {}) {
 async function loadExpenseStats() {
     try {
         console.log('Loading expense stats from:', `${API_BASE}/expenses/stats`);
-        
+
         const response = await fetch(`${API_BASE}/expenses/stats`);
         if (!response.ok) {
             throw new Error('فشل في تحميل إحصائيات المصروفات');
@@ -113,7 +113,7 @@ async function loadExpenseStats() {
         console.log('monthlyTrend type:', typeof stats.monthlyTrend);
         console.log('monthlyTrend isArray:', Array.isArray(stats.monthlyTrend));
         console.log('monthlyTrend value:', stats.monthlyTrend);
-        
+
         renderStats(stats);
     } catch (error) {
         console.error('Error loading expense stats:', error);
@@ -129,12 +129,12 @@ async function addExpense(expenseData) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(expenseData)
     });
-    
+
     if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || 'فشل في إضافة المصروف');
     }
-    
+
     return response.json();
 }
 
@@ -144,12 +144,12 @@ async function updateExpense(id, expenseData) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(expenseData)
     });
-    
+
     if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || 'فشل في تحديث المصروف');
     }
-    
+
     return response.json();
 }
 
@@ -157,31 +157,31 @@ async function deleteExpense(id) {
     const response = await fetch(`${API_BASE}/expenses/${id}`, {
         method: 'DELETE'
     });
-    
+
     if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || 'فشل في حذف المصروف');
     }
-    
+
     return response.json();
 }
 
 // Render Functions
 function renderStats(stats) {
     console.log('Rendering stats:', stats);
-    
+
     document.getElementById('totalExpensesValue').textContent = formatCurrency(stats.totalExpenses);
-    
+
     // Ensure monthlyTrend is an array
     const monthlyTrend = Array.isArray(stats.monthlyTrend) ? stats.monthlyTrend : [];
     console.log('Monthly trend data:', monthlyTrend);
-    
+
     // Calculate current month expenses
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
     const currentMonthExpenses = monthlyTrend.find(m => m.month === currentMonth);
-    document.getElementById('monthlyExpensesValue').textContent = 
+    document.getElementById('monthlyExpensesValue').textContent =
         formatCurrency(currentMonthExpenses ? currentMonthExpenses.total : 0);
-    
+
     // Calculate total count
     const totalCount = monthlyTrend.reduce((sum, m) => sum + (m.count || 0), 0);
     document.getElementById('expensesCountValue').textContent = totalCount;
@@ -189,7 +189,7 @@ function renderStats(stats) {
 
 function renderExpenses(expenses) {
     const container = document.getElementById('expensesContainer');
-    
+
     if (!expenses || expenses.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
@@ -202,12 +202,12 @@ function renderExpenses(expenses) {
 
     const table = document.createElement('table');
     table.className = 'table';
-    
+
     // Header
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
     const headers = ['التاريخ', 'الفئة', 'الوصف', 'المبلغ', 'ملاحظات', 'الإجراءات'];
-    
+
     headers.forEach(header => {
         const th = document.createElement('th');
         th.textContent = header;
@@ -215,73 +215,73 @@ function renderExpenses(expenses) {
     });
     thead.appendChild(headerRow);
     table.appendChild(thead);
-    
+
     // Body
     const tbody = document.createElement('tbody');
     expenses.forEach(expense => {
         const row = document.createElement('tr');
-        
+
         // Date
         const dateCell = document.createElement('td');
         dateCell.textContent = formatDate(expense.expense_date);
         row.appendChild(dateCell);
-        
+
         // Category
         const categoryCell = document.createElement('td');
         categoryCell.textContent = expense.category;
         row.appendChild(categoryCell);
-        
+
         // Description
         const descCell = document.createElement('td');
         descCell.textContent = expense.description;
         row.appendChild(descCell);
-        
+
         // Amount
         const amountCell = document.createElement('td');
         amountCell.textContent = formatCurrency(expense.amount);
         amountCell.className = 'text-danger';
         row.appendChild(amountCell);
-        
+
         // Notes
         const notesCell = document.createElement('td');
         notesCell.textContent = expense.notes || '-';
         row.appendChild(notesCell);
-        
+
         // Actions
         const actionsCell = document.createElement('td');
         const editBtn = document.createElement('button');
         editBtn.className = 'btn btn-sm btn-secondary';
         editBtn.textContent = 'تعديل';
         editBtn.onclick = () => editExpense(expense);
-        
+
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'btn btn-sm btn-danger';
         deleteBtn.textContent = 'حذف';
         deleteBtn.onclick = () => confirmDeleteExpense(expense.id);
         deleteBtn.style.marginRight = '8px';
-        
+
         actionsCell.appendChild(editBtn);
         actionsCell.appendChild(deleteBtn);
         row.appendChild(actionsCell);
-        
+
         tbody.appendChild(row);
     });
     table.appendChild(tbody);
-    
+
     container.innerHTML = '';
     container.appendChild(table);
 }
 
 function renderPagination(pagination) {
     const container = document.getElementById('paginationContainer');
-    
+
     if (!pagination || pagination.pages <= 1) {
         container.innerHTML = '';
         return;
     }
-    
+
     container.innerHTML = '';
-    
+
     // Previous button
     if (pagination.page > 1) {
         const prevBtn = document.createElement('button');
@@ -293,13 +293,13 @@ function renderPagination(pagination) {
         };
         container.appendChild(prevBtn);
     }
-    
+
     // Page info
     const pageInfo = document.createElement('span');
     pageInfo.className = 'pagination-info';
     pageInfo.textContent = `صفحة ${pagination.page} من ${pagination.pages}`;
     container.appendChild(pageInfo);
-    
+
     // Next button
     if (pagination.page < pagination.pages) {
         const nextBtn = document.createElement('button');
@@ -315,18 +315,18 @@ function renderPagination(pagination) {
 
 function populateCategories() {
     const selects = ['categoryFilter', 'expenseCategory', 'editExpenseCategory'];
-    
+
     selects.forEach(selectId => {
         const select = document.getElementById(selectId);
         if (!select) return;
-        
+
         // Clear existing options (except first one for filters)
         if (selectId === 'categoryFilter') {
             select.innerHTML = '<option value="all">جميع الفئات</option>';
         } else {
             select.innerHTML = '<option value="">اختر الفئة</option>';
         }
-        
+
         // Add category options
         expenseCategories.forEach(category => {
             const option = document.createElement('option');
@@ -344,7 +344,7 @@ function editExpense(expense) {
     document.getElementById('editExpenseDescription').value = expense.description;
     document.getElementById('editExpenseAmount').value = expense.amount;
     document.getElementById('editExpenseNotes').value = expense.notes || '';
-    
+
     showModal('editExpenseModal');
 }
 
@@ -373,11 +373,11 @@ function setupEventHandlers() {
         document.getElementById('expenseDate').value = new Date().toISOString().split('T')[0];
         showModal('expenseModal');
     });
-    
+
     // Add Expense Form
     document.getElementById('expenseForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const expenseData = {
             expense_date: document.getElementById('expenseDate').value,
             category: document.getElementById('expenseCategory').value,
@@ -385,14 +385,14 @@ function setupEventHandlers() {
             amount: document.getElementById('expenseAmount').value,
             notes: document.getElementById('expenseNotes').value
         };
-        
+
         try {
             await addExpense(expenseData);
             showMessage('expenseMessage', 'تم إضافة المصروف بنجاح', 'success');
-            
+
             // Reset form
             document.getElementById('expenseForm').reset();
-            
+
             setTimeout(() => {
                 closeModal('expenseModal');
                 loadExpenses(currentPage, currentFilters);
@@ -402,11 +402,11 @@ function setupEventHandlers() {
             showMessage('expenseMessage', error.message, 'error');
         }
     });
-    
+
     // Edit Expense Form
     document.getElementById('editExpenseForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const id = document.getElementById('editExpenseId').value;
         const expenseData = {
             expense_date: document.getElementById('editExpenseDate').value,
@@ -415,11 +415,11 @@ function setupEventHandlers() {
             amount: document.getElementById('editExpenseAmount').value,
             notes: document.getElementById('editExpenseNotes').value
         };
-        
+
         try {
             await updateExpense(id, expenseData);
             showMessage('editExpenseMessage', 'تم تحديث المصروف بنجاح', 'success');
-            
+
             setTimeout(() => {
                 closeModal('editExpenseModal');
                 loadExpenses(currentPage, currentFilters);
@@ -429,7 +429,7 @@ function setupEventHandlers() {
             showMessage('editExpenseMessage', error.message, 'error');
         }
     });
-    
+
     // Apply Filters
     document.getElementById('applyFiltersBtn').addEventListener('click', () => {
         currentFilters = {
@@ -438,23 +438,23 @@ function setupEventHandlers() {
             end_date: document.getElementById('endDateFilter').value,
             sort: document.getElementById('sortFilter').value
         };
-        
+
         currentPage = 1;
         loadExpenses(currentPage, currentFilters);
     });
-    
+
     // Clear Filters
     document.getElementById('clearFiltersBtn').addEventListener('click', () => {
         document.getElementById('categoryFilter').value = 'all';
         document.getElementById('startDateFilter').value = '';
         document.getElementById('endDateFilter').value = '';
         document.getElementById('sortFilter').value = 'date-desc';
-        
+
         currentFilters = {};
         currentPage = 1;
         loadExpenses(currentPage, currentFilters);
     });
-    
+
     // Modal close on backdrop click
     document.querySelectorAll('.modal').forEach(modal => {
         modal.addEventListener('click', (e) => {

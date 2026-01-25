@@ -92,6 +92,42 @@ router.post('/', async (req, res, next) => {
     }
 });
 
+// Update client basic information
+router.put('/:id', async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { name, phone, opening_balance } = req.body;
+        
+        // Check if client exists
+        const client = await getClient(id);
+        if (!client) {
+            return res.status(404).json({ message: 'العميل غير موجود' });
+        }
+        
+        // Validate required fields
+        if (!name || !name.trim()) {
+            return res.status(400).json({ message: 'الاسم مطلوب' });
+        }
+        
+        // Update client data
+        const updateData = {
+            name: name.trim(),
+            phone: phone || null,
+            opening_balance: toNumber(opening_balance)
+        };
+        
+        await db('clients').where('id', id).update(updateData);
+        
+        // Return updated client
+        const updatedClient = await getClient(id);
+        res.json(updatedClient);
+        
+    } catch (err) {
+        console.error('Error updating client:', err);
+        next(err);
+    }
+});
+
 // Client details with deliveries, payments, adjustments, and material totals
 router.get('/:id', async (req, res, next) => {
     try {
@@ -115,18 +151,38 @@ router.get('/:id', async (req, res, next) => {
             .orderBy('d.created_at', 'desc');
 
         deliveries.forEach(d => {
+            // Use stored total_value or calculate correctly (quantity - discount) * price
             const price = Number(d.price_per_meter || 0);
             const qty = Number(d.quantity || 0);
-            d.total_value = price * qty;
+            const discount = Number(d.discount_volume || 0);
+            const netQty = Math.max(qty - discount, 0);
+            
+            // Use stored value if available, otherwise calculate correctly
+            if (!d.total_value || d.total_value === 0) {
+                d.total_value = netQty * price;
+            }
         });
 
-        // Calculate material totals
+        // Calculate material totals with normalized material names
         const materialMap = {};
         deliveries.forEach(d => {
-            const key = (d.material || 'غير محدد').toString();
-            if (!materialMap[key]) materialMap[key] = { totalQty: 0, totalValue: 0 };
-            materialMap[key].totalQty += Number(d.quantity || 0);
-            materialMap[key].totalValue += Number(d.total_value || 0);
+            // Normalize material names
+            let normalizedMaterial = (d.material || 'غير محدد').toString().trim();
+            switch (normalizedMaterial) {
+                case 'سن1':
+                    normalizedMaterial = 'سن 1';
+                    break;
+                case 'سن2':
+                    normalizedMaterial = 'سن 2';
+                    break;
+                case 'سن3':
+                    normalizedMaterial = 'سن 3';
+                    break;
+            }
+            
+            if (!materialMap[normalizedMaterial]) materialMap[normalizedMaterial] = { totalQty: 0, totalValue: 0 };
+            materialMap[normalizedMaterial].totalQty += Number(d.quantity || 0);
+            materialMap[normalizedMaterial].totalValue += Number(d.total_value || 0);
         });
         const materialTotals = Object.keys(materialMap).map(k => ({ material: k, ...materialMap[k] }));
         materialTotals.sort((a, b) => b.totalQty - a.totalQty);
@@ -179,12 +235,13 @@ router.post('/:id/payments', async (req, res, next) => {
                 
             // Check in crusher_payments table
             const existingCrusherPayment = await db('crusher_payments')
-                .where({ details, payment_method: method })
+                .where({ payment_method: method })
+                .whereRaw('note LIKE ?', [`%${details}%`])
                 .first();
                 
             // Check in contractor_payments table
             const existingContractorPayment = await db('contractor_payments')
-                .where({ details, payment_method: method })
+                .whereRaw('note LIKE ?', [`%${details}%`])
                 .first();
                 
             // Check in adjustments table
@@ -254,12 +311,13 @@ router.post('/:id/adjustments', async (req, res, next) => {
                 
             // Check in crusher_payments table
             const existingCrusherPayment = await db('crusher_payments')
-                .where({ details, payment_method: method })
+                .where({ payment_method: method })
+                .whereRaw('note LIKE ?', [`%${details}%`])
                 .first();
                 
             // Check in contractor_payments table
             const existingContractorPayment = await db('contractor_payments')
-                .where({ details, payment_method: method })
+                .whereRaw('note LIKE ?', [`%${details}%`])
                 .first();
                 
             // Check in adjustments table
@@ -466,16 +524,29 @@ router.get('/:id/reports/deliveries', async (req, res, next) => {
             .whereBetween('d.created_at', [from + ' 00:00:00', to + ' 23:59:59'])
             .orderBy('d.created_at', 'desc');
 
-        // Group by material
+        // Group by material with normalized names
         const materialTotals = {};
         deliveries.forEach(d => {
-            const material = d.material || 'غير محدد';
-            if (!materialTotals[material]) {
-                materialTotals[material] = { quantity: 0, value: 0, count: 0 };
+            // Normalize material names
+            let normalizedMaterial = (d.material || 'غير محدد').toString().trim();
+            switch (normalizedMaterial) {
+                case 'سن1':
+                    normalizedMaterial = 'سن 1';
+                    break;
+                case 'سن2':
+                    normalizedMaterial = 'سن 2';
+                    break;
+                case 'سن3':
+                    normalizedMaterial = 'سن 3';
+                    break;
             }
-            materialTotals[material].quantity += Number(d.quantity || 0);
-            materialTotals[material].value += Number(d.quantity || 0) * Number(d.price_per_meter || 0);
-            materialTotals[material].count += 1;
+            
+            if (!materialTotals[normalizedMaterial]) {
+                materialTotals[normalizedMaterial] = { quantity: 0, value: 0, count: 0 };
+            }
+            materialTotals[normalizedMaterial].quantity += Number(d.quantity || 0);
+            materialTotals[normalizedMaterial].value += Number(d.total_value || 0);
+            materialTotals[normalizedMaterial].count += 1;
         });
 
         // Generate HTML for PDF
@@ -519,7 +590,7 @@ router.get('/:id/reports/statement', async (req, res, next) => {
         const adjustments = await adjustmentsQuery.orderBy('created_at', 'asc');
 
         // Calculate totals from filtered data
-        const totalDeliveries = deliveries.reduce((sum, d) => sum + (Number(d.quantity || 0) * Number(d.price_per_meter || 0)), 0);
+        const totalDeliveries = deliveries.reduce((sum, d) => sum + Number(d.total_value || 0), 0);
         const totalPayments = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
         const totalAdjustments = adjustments.reduce((sum, a) => sum + Number(a.amount || 0), 0);
         
@@ -527,6 +598,10 @@ router.get('/:id/reports/statement', async (req, res, next) => {
         const openingBalance = Number(client.opening_balance || 0);
         
         // Calculate final balance
+        // Positive opening balance = client owes us
+        // Deliveries = client owes us more
+        // Payments = client paid us (reduces what they owe)
+        // Adjustments = can be positive (client owes more) or negative (we owe client)
         const balance = openingBalance + totalDeliveries - totalPayments + totalAdjustments;
         
         const totals = {
@@ -630,7 +705,7 @@ function generateDeliveriesReportHTML(client, deliveries, materialTotals, fromDa
                 <th>السعر</th>
                 <th>الإجمالي</th>
                 <th>رقم البون</th>
-                <th>الكسارة</th>
+                <th>المقاول</th>
             </tr>
         </thead>
         <tbody>
@@ -640,9 +715,9 @@ function generateDeliveriesReportHTML(client, deliveries, materialTotals, fromDa
                     <td>${d.material || '-'}</td>
                     <td>${formatQuantity(d.quantity)}</td>
                     <td>${formatCurrency(d.price_per_meter)}</td>
-                    <td>${formatCurrency(Number(d.quantity || 0) * Number(d.price_per_meter || 0))}</td>
+                    <td>${formatCurrency(d.total_value || 0)}</td>
                     <td>${d.voucher || '-'}</td>
-                    <td>${d.crusher_name || '-'}</td>
+                    <td>${d.contractor_name || '-'}</td>
                 </tr>
             `).join('')}
         </tbody>
@@ -671,6 +746,24 @@ function generateAccountStatementHTML(client, deliveries, payments, adjustments,
             direction: rtl; 
             background: #f8f9fa;
             color: #333;
+        }
+        .print-button { 
+            position: fixed; 
+            top: 20px; 
+            left: 20px; 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-size: 14px;
+            z-index: 1000;
+        }
+        .print-button:hover { background: #0056b3; }
+        @media print {
+            .print-button { display: none; }
+            body { background: white; margin: 10px; }
         }
         .header { 
             text-align: center; 
@@ -821,7 +914,7 @@ function generateAccountStatementHTML(client, deliveries, payments, adjustments,
         <div class="summary-grid">
             <div class="summary-item">
                 <div class="summary-value ${(totals.openingBalance || 0) > 0 ? 'balance-negative' : (totals.openingBalance || 0) < 0 ? 'balance-positive' : ''}">${formatCurrency(Math.abs(totals.openingBalance || 0))}</div>
-                <div class="summary-label">الرصيد الافتتاحي ${(totals.openingBalance || 0) > 0 ? '(على العميل)' : (totals.openingBalance || 0) < 0 ? '(للعميل)' : '(متوازن)'}</div>
+                <div class="summary-label">الرصيد الافتتاحي ${(totals.openingBalance || 0) > 0 ? '(عليه)' : (totals.openingBalance || 0) < 0 ? '(له)' : '(متوازن)'}</div>
             </div>
             <div class="summary-item">
                 <div class="summary-value balance-negative">${formatCurrency(totals.totalDeliveries || 0)}</div>
@@ -829,15 +922,15 @@ function generateAccountStatementHTML(client, deliveries, payments, adjustments,
             </div>
             <div class="summary-item">
                 <div class="summary-value balance-positive">${formatCurrency(totals.totalPayments || 0)}</div>
-                <div class="summary-label">إجمالي المدفوعات</div>
+                <div class="summary-label">المدفوع من العميل</div>
             </div>
             <div class="summary-item">
                 <div class="summary-value ${(totals.totalAdjustments || 0) > 0 ? 'balance-negative' : (totals.totalAdjustments || 0) < 0 ? 'balance-positive' : ''}">${formatCurrency(Math.abs(totals.totalAdjustments || 0))}</div>
-                <div class="summary-label">التسويات ${(totals.totalAdjustments || 0) > 0 ? '(على العميل)' : (totals.totalAdjustments || 0) < 0 ? '(للعميل)' : '(متوازنة)'}</div>
+                <div class="summary-label">التسويات ${(totals.totalAdjustments || 0) > 0 ? '(عليه)' : (totals.totalAdjustments || 0) < 0 ? '(له)' : '(متوازنة)'}</div>
             </div>
             <div class="summary-item">
                 <div class="summary-value ${(totals.balance || 0) > 0 ? 'balance-negative' : (totals.balance || 0) < 0 ? 'balance-positive' : ''}">${formatCurrency(Math.abs(totals.balance || 0))}</div>
-                <div class="summary-label">الرصيد الصافي ${(totals.balance || 0) > 0 ? '(على العميل)' : (totals.balance || 0) < 0 ? '(للعميل)' : '(متوازن)'}</div>
+                <div class="summary-label">الرصيد الصافي ${(totals.balance || 0) > 0 ? '(عليه)' : (totals.balance || 0) < 0 ? '(له)' : '(متوازن)'}</div>
             </div>
         </div>
     </div>
@@ -863,7 +956,7 @@ function generateAccountStatementHTML(client, deliveries, payments, adjustments,
                         <td>${d.material || '-'}</td>
                         <td>${Number(d.quantity || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2 })} م³</td>
                         <td>${formatCurrency(d.price_per_meter)}</td>
-                        <td class="balance-negative"><strong>${formatCurrency(Number(d.quantity || 0) * Number(d.price_per_meter || 0))}</strong></td>
+                        <td class="balance-negative"><strong>${formatCurrency(d.total_value || 0)}</strong></td>
                         <td>${d.voucher || '-'}</td>
                     </tr>
                 `).join('')}
@@ -921,7 +1014,7 @@ function generateAccountStatementHTML(client, deliveries, payments, adjustments,
                         <td>${formatDate(a.created_at)}</td>
                         <td class="${isPositive ? 'balance-negative' : 'balance-positive'}">
                             <strong>${formatCurrency(Math.abs(amount))}</strong>
-                            <br><small style="font-size: 12px;">${isPositive ? '(على العميل)' : '(للعميل)'}</small>
+                            <br><small style="font-size: 12px;">${isPositive ? '(عليه)' : '(له)'}</small>
                         </td>
                         <td>${a.method || 'تعديل حسابي'}</td>
                         <td>${a.reason || '-'}</td>
@@ -940,5 +1033,59 @@ function generateAccountStatementHTML(client, deliveries, payments, adjustments,
 </body>
 </html>`;
 }
+
+// Delete client (with conflict checking)
+router.delete('/:id', async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        
+        const client = await getClient(id);
+        if (!client) {
+            return res.status(404).json({ message: 'العميل غير موجود' });
+        }
+        
+        // Check for conflicts - deliveries
+        const deliveriesCount = await db('deliveries').where('client_id', id).count('id as count').first();
+        if (deliveriesCount.count > 0) {
+            return res.status(400).json({ 
+                message: `لا يمكن حذف العميل "${client.name}" لأنه مرتبط بـ ${deliveriesCount.count} تسليمة. يجب حذف التسليمات أولاً.`,
+                conflict: 'deliveries',
+                count: deliveriesCount.count
+            });
+        }
+        
+        // Check for conflicts - payments
+        const paymentsCount = await db('payments').where('client_id', id).count('id as count').first();
+        if (paymentsCount.count > 0) {
+            return res.status(400).json({ 
+                message: `لا يمكن حذف العميل "${client.name}" لأنه مرتبط بـ ${paymentsCount.count} دفعة. يجب حذف المدفوعات أولاً.`,
+                conflict: 'payments',
+                count: paymentsCount.count
+            });
+        }
+        
+        // Check for conflicts - adjustments
+        const adjustmentsCount = await db('adjustments').where({ entity_type: 'client', entity_id: id }).count('id as count').first();
+        if (adjustmentsCount.count > 0) {
+            return res.status(400).json({ 
+                message: `لا يمكن حذف العميل "${client.name}" لأنه مرتبط بـ ${adjustmentsCount.count} تسوية. يجب حذف التسويات أولاً.`,
+                conflict: 'adjustments',
+                count: adjustmentsCount.count
+            });
+        }
+        
+        // If no conflicts, delete the client
+        await db('clients').where('id', id).del();
+        
+        res.json({ 
+            message: `تم حذف العميل "${client.name}" بنجاح`,
+            deletedClient: client
+        });
+        
+    } catch (err) {
+        console.error('Delete client error:', err);
+        res.status(500).json({ message: 'خطأ في حذف العميل: ' + err.message });
+    }
+});
 
 module.exports = router;

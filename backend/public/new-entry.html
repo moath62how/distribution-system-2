@@ -167,9 +167,15 @@
                     fetch(`${API_BASE}/crushers`, { cache: 'no-cache' }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
                     fetch(`${API_BASE}/contractors`, { cache: 'no-cache' }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
                 ]);
-                populateSelect('client', clients.data, 'اختر العميل');
-                populateSelect('crusher', crushers, 'اختر الكسارة');
-                populateSelect('wheelContractor', contractors, 'اختر المقاول');
+
+                // Extract arrays from API responses (handle both old and new formats)
+                const clientsArray = clients.clients || clients.data || clients;
+                const crushersArray = crushers.crushers || crushers.data || crushers;
+                const contractorsArray = contractors.contractors || contractors.data || contractors;
+
+                populateSelect('client', clientsArray, 'اختر العميل');
+                populateSelect('crusher', crushersArray, 'اختر الكسارة');
+                populateSelect('wheelContractor', contractorsArray, 'اختر المقاول');
             } catch (err) {
                 console.error(err);
                 const errorDiv = document.getElementById('formError');
@@ -243,14 +249,15 @@
             errorDiv.style.display = "none";
 
             const payload = {
-                client_id: Number(document.getElementById('client').value),
-                crusher_id: Number(document.getElementById('crusher').value) || null,
-                contractor_id: Number(document.getElementById('wheelContractor').value) || null,
+                client_id: document.getElementById('client').value,
+                crusher_id: document.getElementById('crusher').value || null,
+                contractor_id: document.getElementById('wheelContractor').value || null,
                 material: document.getElementById('material').value,
                 voucher: document.getElementById('voucher').value,
                 quantity: parseFloat(document.getElementById('quantity').value),
                 discount_volume: discountYes.checked ? (parseFloat(document.getElementById('deductAmount').value) || 0) : 0,
                 price_per_meter: parseFloat(document.getElementById('price').value),
+                material_price_at_time: parseFloat(document.getElementById('price').value), // Using client price as fallback - should be crusher price
                 driver_name: document.getElementById('driver').value,
                 car_head: document.getElementById('carHead').value,
                 car_tail: document.getElementById('carTail').value,
