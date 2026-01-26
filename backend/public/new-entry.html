@@ -21,6 +21,7 @@
             </div>
             <form id="newEntryForm" autocomplete="off" novalidate>
                 <div id="formError" class="form-error"></div>
+
                 <div class="form-group">
                     <label for="client"><span class="required">*</span>العميل</label>
                     <select id="client" required>
@@ -72,7 +73,8 @@
                         <input type="text" id="carTail" required maxlength="28" />
                     </div>
                 </div>
-                <div style="flex:1;">
+
+                <div class="form-group">
                     <label for="carVolume"><span class="required">*</span>تكعيب السيارة (م³)</label>
                     <input type="number" id="carVolume" min="0.01" step="0.01" required />
                 </div>
@@ -110,210 +112,48 @@
                             م³
                         </span>
                     </div>
+                </div>
 
-                    <div class="form-group flex-row">
-                        <div style="flex:1;">
-                            <label for="quantity"><span class="required">*</span>كمية الحمولة (م³)</label>
-                            <input type="number" id="quantity" min="0.01" step="0.01" required />
-                        </div>
-                        <div style="flex:1;">
-                            <label for="price"><span class="required">*</span>السعر لكل م³</label>
-                            <input type="number" id="price" min="0" step="0.01" required />
-                        </div>
+                <div class="form-group flex-row">
+                    <div style="flex:1;">
+                        <label for="quantity"><span class="required">*</span>كمية الحمولة (م³)</label>
+                        <input type="number" id="quantity" min="0.01" step="0.01" required />
                     </div>
-
-
-
-                    <div class="form-group">
-                        <label for="contractorCharge">مستحق مشال لكل م³</label>
-                        <input type="number" id="contractorCharge" min="0" step="0.01" />
+                    <div style="flex:1;">
+                        <label for="price"><span class="required">*</span>السعر لكل م³ (للعميل)</label>
+                        <input type="number" id="price" min="0" step="0.01" required />
                     </div>
+                </div>
 
-                    <button type="submit" class="save-btn">حفظ البيانات</button>
+                <div class="form-group">
+                    <div id="crusherPriceDisplay"
+                        style="background: #f0f8ff; border: 2px solid #4a90e2; border-radius: 8px; padding: 15px; margin: 10px 0; display: none;">
+                        <label style="font-weight: bold; color: #2c5aa0; margin-bottom: 8px; display: block;">
+                            سعر الكسارة للمادة المختارة:
+                        </label>
+                        <div id="crusherPriceValue" style="font-size: 1.2em; font-weight: bold; color: #1e4d72;">
+                            غير محدد
+                        </div>
+                        <small style="color: #666; font-style: italic;">
+                            هذا السعر سيتم حفظه مع التسليم للحفاظ على الأسعار التاريخية
+                        </small>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="contractorCharge">مستحق مشال لكل م³</label>
+                    <input type="number" id="contractorCharge" min="0" step="0.01" />
+                </div>
+
+                <button type="submit" class="save-btn">حفظ البيانات</button>
             </form>
         </div>
     </div>
+
+    <!-- Scripts -->
     <script src="/env.js"></script>
     <script src="/js/sidebar.js"></script>
-    <script>
-        const API_BASE = (function () {
-            if (window.__API_BASE__) return window.__API_BASE__;
-            try { const origin = window.location.origin; if (!origin || origin === 'null') return 'http://localhost:5000/api'; return origin.replace(/\/$/, '') + '/api'; } catch (e) { return 'http://localhost:5000/api'; }
-        })();
-
-        async function populateSelect(id, data, placeholder) {
-            const select = document.getElementById(id);
-            select.innerHTML = '';
-            const defaultOpt = document.createElement('option');
-            defaultOpt.value = '';
-            defaultOpt.textContent = placeholder;
-            select.appendChild(defaultOpt);
-            if (!data || !Array.isArray(data)) {
-                console.error('Invalid data for populateSelect:', data);
-                return;
-            }
-            data.forEach(item => {
-                const opt = document.createElement('option');
-                opt.value = item.id;
-                opt.textContent = item.name;
-                select.appendChild(opt);
-            });
-        }
-
-        async function loadDropdowns() {
-            try {
-                const [clients, crushers, contractors] = await Promise.all([
-                    fetch(`${API_BASE}/clients`, { cache: 'no-cache' }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
-                    fetch(`${API_BASE}/crushers`, { cache: 'no-cache' }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
-                    fetch(`${API_BASE}/contractors`, { cache: 'no-cache' }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-                ]);
-
-                // Extract arrays from API responses (handle both old and new formats)
-                const clientsArray = clients.clients || clients.data || clients;
-                const crushersArray = crushers.crushers || crushers.data || crushers;
-                const contractorsArray = contractors.contractors || contractors.data || contractors;
-
-                populateSelect('client', clientsArray, 'اختر العميل');
-                populateSelect('crusher', crushersArray, 'اختر الكسارة');
-                populateSelect('wheelContractor', contractorsArray, 'اختر المقاول');
-            } catch (err) {
-                console.error(err);
-                const errorDiv = document.getElementById('formError');
-                errorDiv.textContent = 'تعذر تحميل البيانات الأساسية';
-                errorDiv.style.display = 'block';
-            }
-        }
-
-        // Discount fields toggle
-        const discountYes = document.getElementById('discountYes');
-        const discountNo = document.getElementById('discountNo');
-        const deductAmountField = document.getElementById('deductAmountField');
-        discountYes.addEventListener('change', () => {
-            if (discountYes.checked) {
-                deductAmountField.style.display = '';
-                document.getElementById('deductAmount').required = true;
-            }
-        });
-        discountNo.addEventListener('change', () => {
-            if (discountNo.checked) {
-                deductAmountField.style.display = 'none';
-                const d = document.getElementById('deductAmount');
-                d.required = false;
-                d.value = "";
-            }
-        });
-
-        // Form submission
-        document.getElementById('newEntryForm').addEventListener('submit', async function (e) {
-            e.preventDefault();
-            let valid = true;
-            let err = "";
-
-            const requiredFields = [
-                { id: 'client', msg: 'يرجى اختيار العميل' },
-                { id: 'material', msg: 'يرجى اختيار نوع المادة' },
-                { id: 'crusher', msg: 'يرجى اختيار الكسارة' },
-                { id: 'voucher', msg: 'يرجى إدخال رقم البون' },
-                { id: 'wheelContractor', msg: 'يرجى اختيار مقاول النقل' },
-                { id: 'driver', msg: 'يرجى إدخال اسم السائق' },
-                { id: 'carHead', msg: 'يرجى إدخال رقم الرأس' },
-                { id: 'carTail', msg: 'يرجى إدخال رقم المقطورة' },
-                { id: 'quantity', msg: 'يرجى إدخال كمية الحمولة', type: 'number' },
-                { id: 'price', msg: 'يرجى إدخال السعر', type: 'number' },
-                { id: 'carVolume', msg: 'يرجى إدخال تكعيب السيارة', type: 'number' }
-            ];
-            if (discountYes.checked) {
-                requiredFields.push({ id: 'deductAmount', msg: 'يرجى تحديد قيمة الخصم', type: 'number' });
-            }
-
-            for (const f of requiredFields) {
-                const el = document.getElementById(f.id);
-                if (!el || !el.value || (el.value.trim && !el.value.trim())) {
-                    valid = false;
-                    err = f.msg;
-                    break;
-                }
-                if (f.type === 'number' && (isNaN(parseFloat(el.value)) || parseFloat(el.value) <= 0)) {
-                    valid = false;
-                    err = f.msg;
-                    break;
-                }
-            }
-
-            const errorDiv = document.getElementById('formError');
-            if (!valid) {
-                errorDiv.textContent = err;
-                errorDiv.style.display = "block";
-                return false;
-            }
-            errorDiv.style.display = "none";
-
-            const payload = {
-                client_id: document.getElementById('client').value,
-                crusher_id: document.getElementById('crusher').value || null,
-                contractor_id: document.getElementById('wheelContractor').value || null,
-                material: document.getElementById('material').value,
-                voucher: document.getElementById('voucher').value,
-                quantity: parseFloat(document.getElementById('quantity').value),
-                discount_volume: discountYes.checked ? (parseFloat(document.getElementById('deductAmount').value) || 0) : 0,
-                price_per_meter: parseFloat(document.getElementById('price').value),
-                material_price_at_time: parseFloat(document.getElementById('price').value), // Using client price as fallback - should be crusher price
-                driver_name: document.getElementById('driver').value,
-                car_head: document.getElementById('carHead').value,
-                car_tail: document.getElementById('carTail').value,
-                car_volume: parseFloat(document.getElementById('carVolume').value) || null,
-                contractor_charge_per_meter: parseFloat(document.getElementById('contractorCharge').value) || 0
-            };
-
-            try {
-                const resp = await fetch(`${API_BASE}/deliveries`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (!resp.ok) {
-                    const msg = await resp.text();
-                    throw new Error(msg || 'فشل الحفظ');
-                }
-                await Swal.fire({
-                    icon: 'success',
-                    title: 'تم الحفظ',
-                    text: 'تم حفظ التسليم بنجاح',
-                    confirmButtonText: 'حسناً'
-                });
-                // Reset form but preserve dropdown selections
-                const preservedValues = {
-                    client: document.getElementById('client').value,
-                    crusher: document.getElementById('crusher').value,
-                    wheelContractor: document.getElementById('wheelContractor').value
-                };
-                this.reset();
-                // Restore preserved values
-                document.getElementById('client').value = preservedValues.client;
-                document.getElementById('crusher').value = preservedValues.crusher;
-                document.getElementById('wheelContractor').value = preservedValues.wheelContractor;
-                deductAmountField.style.display = 'none';
-                document.getElementById('deductAmount').required = false;
-            } catch (errResp) {
-                console.error(errResp);
-                errorDiv.textContent = 'تعذر حفظ التسليم';
-                errorDiv.style.display = "block";
-            }
-            return false;
-        });
-
-        loadDropdowns();
-
-        // Refresh button
-        document.getElementById('refreshBtn').addEventListener('click', () => {
-            loadDropdowns();
-        });
-
-        // Auto refresh dropdowns every 30 seconds
-        setInterval(() => {
-            loadDropdowns();
-        }, 30000);
-    </script>
+    <script src="/js/new-entry.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 

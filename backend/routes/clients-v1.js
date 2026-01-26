@@ -1,19 +1,48 @@
+const express = require('express');
 const { Client, Delivery, Payment, Adjustment } = require('../models');
+
+const router = express.Router();
 
 const toNumber = (v) => Number(v || 0);
 
 // Helper function for date formatting
 const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString('ar-EG');
 
-class ClientService {
-    static async getAllClients(query = {}) {
+async function getClient(id) {
+    return await Client.findById(id);
+}
+
+async function computeClientTotals(clientId) {
+    const deliveries = await Delivery.find({ client_id: clientId });
+    const payments = await Payment.find({ client_id: clientId });
+    const adjustments = await Adjustment.find({ entity_type: 'client', entity_id: clientId });
+
+    const client = await getClient(clientId);
+    const opening = client ? toNumber(client.opening_balance) : 0;
+
+    const totalDeliveries = deliveries.reduce((sum, d) => sum + toNumber(d.total_value), 0);
+    const totalPayments = payments.reduce((sum, p) => sum + toNumber(p.amount), 0);
+    const totalAdjustments = adjustments.reduce((sum, a) => sum + toNumber(a.amount), 0);
+
+    return {
+        openingBalance: opening,
+        totalDeliveries,
+        totalPayments,
+        totalAdjustments,
+        balance: opening + totalDeliveries + totalAdjustments - totalPayments
+    };
+}
+
+// Get all clients with balances, supporting search, filter, sort, pagination
+router.get('/', async (req, res, next) => {
+    try {
         const {
             search,
             sort = 'name',
             order = 'asc',
             page = 1,
             limit = 25
-        } = query;
+        } = req.query;
 
         let filter = {};
 
@@ -39,7 +68,7 @@ class ClientService {
         // Calculate balances for each client
         const enriched = await Promise.all(
             clients.map(async (client) => {
-                const totals = await this.computeClientTotals(client._id);
+                const totals = await computeClientTotals(client._id);
                 return {
                     id: client._id,
                     name: client.name,
@@ -51,7 +80,7 @@ class ClientService {
             })
         );
 
-        return {
+        res.json({
             clients: enriched,
             pagination: {
                 page: parseInt(page),
@@ -59,35 +88,38 @@ class ClientService {
                 total,
                 pages: Math.ceil(total / limit)
             }
-        };
+        });
+    } catch (err) {
+        next(err);
     }
+});
 
-    static async getClientById(id) {
-        const client = await Client.findById(id);
+// Get client by ID with balance details
+router.get('/:id', async (req, res, next) => {
+    try {
+        const client = await Client.findById(req.params.id);
 
         if (!client) {
-            return null;
+            return res.status(404).json({ message: 'العميل غير موجود' });
         }
 
         // Get related data
-        const deliveries = await Delivery.find({ client_id: id })
+        const deliveries = await Delivery.find({ client_id: req.params.id })
             .populate('crusher_id', 'name')
             .populate('contractor_id', 'name')
             .sort({ created_at: -1 });
 
-        const payments = await Payment.find({ client_id: id })
+        const payments = await Payment.find({ client_id: req.params.id })
             .sort({ paid_at: -1 });
 
         const adjustments = await Adjustment.find({
             entity_type: 'client',
-            entity_id: id
+            entity_id: req.params.id
         }).sort({ created_at: -1 });
 
-        // Calculate totals and material breakdown
-        const totals = await this.computeClientTotals(client._id);
-        const materialTotals = this.computeMaterialTotals(deliveries);
+        const totals = await computeClientTotals(client._id);
 
-        return {
+        res.json({
             client: {
                 id: client._id,
                 name: client.name,
@@ -118,8 +150,7 @@ class ClientService {
                 method: p.method,
                 details: p.details,
                 note: p.note,
-                paid_at: p.paid_at,
-                payment_image: p.payment_image
+                paid_at: p.paid_at
             })),
             adjustments: adjustments.map(a => ({
                 id: a._id,
@@ -129,218 +160,221 @@ class ClientService {
                 reason: a.reason,
                 created_at: a.created_at
             })),
-            totals,
-            materialTotals
-        };
+            totals
+        });
+    } catch (err) {
+        next(err);
     }
+});
 
-    static async createClient(data) {
+// Create new client
+router.post('/', async (req, res, next) => {
+    try {
+        const { name, phone, opening_balance } = req.body;
+
+        if (!name || name.trim() === '') {
+            return res.status(400).json({ message: 'اسم العميل مطلوب' });
+        }
+
         const client = new Client({
-            name: data.name,
-            phone: data.phone,
-            opening_balance: toNumber(data.opening_balance)
+            name: name.trim(),
+            phone: phone?.trim() || '',
+            opening_balance: toNumber(opening_balance)
         });
 
         await client.save();
 
-        return {
+        res.status(201).json({
             id: client._id,
             name: client.name,
             phone: client.phone,
             opening_balance: client.opening_balance,
             created_at: client.created_at
-        };
+        });
+    } catch (err) {
+        if (err.code === 11000) {
+            return res.status(400).json({ message: 'اسم العميل موجود بالفعل' });
+        }
+        next(err);
     }
+});
 
-    static async updateClient(id, data) {
+// Update client
+router.put('/:id', async (req, res, next) => {
+    try {
+        const { name, phone, opening_balance } = req.body;
+
+        if (!name || name.trim() === '') {
+            return res.status(400).json({ message: 'اسم العميل مطلوب' });
+        }
+
         const client = await Client.findByIdAndUpdate(
-            id,
+            req.params.id,
             {
-                name: data.name,
-                phone: data.phone,
-                opening_balance: toNumber(data.opening_balance)
+                name: name.trim(),
+                phone: phone?.trim() || '',
+                opening_balance: toNumber(opening_balance)
             },
             { new: true }
         );
 
         if (!client) {
-            return null;
+            return res.status(404).json({ message: 'العميل غير موجود' });
         }
 
-        return {
+        res.json({
             id: client._id,
             name: client.name,
             phone: client.phone,
             opening_balance: client.opening_balance,
             created_at: client.created_at
-        };
-    }
-
-    static async deleteClient(id) {
-        return await Client.findByIdAndDelete(id);
-    }
-
-    static async computeClientTotals(clientId) {
-        const deliveries = await Delivery.find({ client_id: clientId });
-        const payments = await Payment.find({ client_id: clientId });
-        const adjustments = await Adjustment.find({ entity_type: 'client', entity_id: clientId });
-
-        const client = await Client.findById(clientId);
-        const opening = client ? toNumber(client.opening_balance) : 0;
-
-        const totalDeliveries = deliveries.reduce((sum, d) => sum + toNumber(d.total_value), 0);
-        const totalPayments = payments.reduce((sum, p) => sum + toNumber(p.amount), 0);
-        const totalAdjustments = adjustments.reduce((sum, a) => sum + toNumber(a.amount), 0);
-
-        return {
-            openingBalance: opening,
-            totalDeliveries,
-            totalPayments,
-            totalAdjustments,
-            balance: opening + totalDeliveries + totalAdjustments - totalPayments
-        };
-    }
-
-    static computeMaterialTotals(deliveries) {
-        const materialMap = {};
-
-        deliveries.forEach(delivery => {
-            const material = delivery.material || 'غير محدد';
-            const quantity = toNumber(delivery.net_quantity) || toNumber(delivery.quantity);
-            const totalValue = toNumber(delivery.total_value);
-
-            if (!materialMap[material]) {
-                materialMap[material] = {
-                    material,
-                    totalQty: 0,
-                    totalValue: 0
-                };
-            }
-
-            materialMap[material].totalQty += quantity;
-            materialMap[material].totalValue += totalValue;
         });
-
-        return Object.values(materialMap).sort((a, b) => b.totalValue - a.totalValue);
+    } catch (err) {
+        if (err.code === 11000) {
+            return res.status(400).json({ message: 'اسم العميل موجود بالفعل' });
+        }
+        next(err);
     }
+});
 
-    static async getDeliveries(clientId, query = {}) {
-        const {
-            page = 1,
-            limit = 50,
-            sort = 'created_at',
-            order = 'desc'
-        } = query;
+// Delete client
+router.delete('/:id', async (req, res, next) => {
+    try {
+        const client = await Client.findByIdAndDelete(req.params.id);
 
-        const sortOrder = order === 'desc' ? -1 : 1;
-        const skip = (page - 1) * limit;
+        if (!client) {
+            return res.status(404).json({ message: 'العميل غير موجود' });
+        }
 
-        const deliveries = await Delivery.find({ client_id: clientId })
-            .populate('crusher_id', 'name')
-            .populate('contractor_id', 'name')
-            .sort({ [sort]: sortOrder })
-            .skip(skip)
-            .limit(parseInt(limit));
-
-        const total = await Delivery.countDocuments({ client_id: clientId });
-
-        return {
-            deliveries,
-            pagination: {
-                page: parseInt(page),
-                limit: parseInt(limit),
-                total,
-                pages: Math.ceil(total / limit)
-            }
-        };
+        res.json({ message: 'تم حذف العميل بنجاح' });
+    } catch (err) {
+        next(err);
     }
+});
 
-    static async getClientPayments(clientId) {
-        return await Payment.find({ client_id: clientId }).sort({ paid_at: -1 });
+// Get client payments
+router.get('/:id/payments', async (req, res, next) => {
+    try {
+        const payments = await Payment.find({ client_id: req.params.id }).sort({ paid_at: -1 });
+        res.json({ payments });
+    } catch (err) {
+        next(err);
     }
+});
 
-    static async addClientPayment(clientId, data) {
+// Add client payment
+router.post('/:id/payments', async (req, res, next) => {
+    try {
+        const { amount, method, details, note, paid_at } = req.body;
+
         const payment = new Payment({
-            client_id: clientId,
-            amount: toNumber(data.amount),
-            method: data.method,
-            details: data.details,
-            note: data.note,
-            paid_at: data.paid_at,
-            payment_image: data.payment_image
+            client_id: req.params.id,
+            amount: toNumber(amount),
+            method: method?.trim() || '',
+            details: details?.trim() || '',
+            note: note?.trim() || '',
+            paid_at: paid_at ? new Date(paid_at) : new Date()
         });
 
         await payment.save();
 
-        return {
+        res.status(201).json({
             id: payment._id,
             client_id: payment.client_id,
             amount: payment.amount,
             method: payment.method,
             details: payment.details,
             note: payment.note,
-            paid_at: payment.paid_at,
-            payment_image: payment.payment_image
-        };
+            paid_at: payment.paid_at
+        });
+    } catch (err) {
+        next(err);
     }
+});
 
-    static async updateClientPayment(clientId, paymentId, data) {
+// Update client payment
+router.put('/:id/payments/:paymentId', async (req, res, next) => {
+    try {
+        const { amount, method, details, note, paid_at } = req.body;
+
         const payment = await Payment.findOneAndUpdate(
-            { _id: paymentId, client_id: clientId },
+            { _id: req.params.paymentId, client_id: req.params.id },
             {
-                amount: toNumber(data.amount),
-                method: data.method,
-                details: data.details,
-                note: data.note,
-                paid_at: data.paid_at,
-                payment_image: data.payment_image
+                amount: toNumber(amount),
+                method: method?.trim() || '',
+                details: details?.trim() || '',
+                note: note?.trim() || '',
+                paid_at: paid_at ? new Date(paid_at) : new Date()
             },
             { new: true }
         );
 
         if (!payment) {
-            return null;
+            return res.status(404).json({ message: 'الدفعة غير موجودة' });
         }
 
-        return {
+        res.json({
             id: payment._id,
             client_id: payment.client_id,
             amount: payment.amount,
             method: payment.method,
             details: payment.details,
             note: payment.note,
-            paid_at: payment.paid_at,
-            payment_image: payment.payment_image
-        };
-    }
-
-    static async deleteClientPayment(clientId, paymentId) {
-        return await Payment.findOneAndDelete({
-            _id: paymentId,
-            client_id: clientId
+            paid_at: payment.paid_at
         });
+    } catch (err) {
+        next(err);
     }
+});
 
-    static async getClientAdjustments(clientId) {
-        return await Adjustment.find({
+// Delete client payment
+router.delete('/:id/payments/:paymentId', async (req, res, next) => {
+    try {
+        const payment = await Payment.findOneAndDelete({
+            _id: req.params.paymentId,
+            client_id: req.params.id
+        });
+
+        if (!payment) {
+            return res.status(404).json({ message: 'الدفعة غير موجودة' });
+        }
+
+        res.json({ message: 'تم حذف الدفعة بنجاح' });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// Get client adjustments
+router.get('/:id/adjustments', async (req, res, next) => {
+    try {
+        const adjustments = await Adjustment.find({
             entity_type: 'client',
-            entity_id: clientId
+            entity_id: req.params.id
         }).sort({ created_at: -1 });
+        res.json({ adjustments });
+    } catch (err) {
+        next(err);
     }
+});
 
-    static async addClientAdjustment(clientId, data) {
+// Add client adjustment
+router.post('/:id/adjustments', async (req, res, next) => {
+    try {
+        const { amount, method, details, reason } = req.body;
+
         const adjustment = new Adjustment({
             entity_type: 'client',
-            entity_id: clientId,
-            amount: toNumber(data.amount),
-            method: data.method,
-            details: data.details,
-            reason: data.reason
+            entity_id: req.params.id,
+            amount: toNumber(amount),
+            method: method?.trim() || '',
+            details: details?.trim() || '',
+            reason: reason?.trim() || ''
         });
 
         await adjustment.save();
 
-        return {
+        res.status(201).json({
             id: adjustment._id,
             entity_type: adjustment.entity_type,
             entity_id: adjustment.entity_id,
@@ -349,30 +383,37 @@ class ClientService {
             details: adjustment.details,
             reason: adjustment.reason,
             created_at: adjustment.created_at
-        };
+        });
+    } catch (err) {
+        next(err);
     }
+});
 
-    static async updateClientAdjustment(clientId, adjustmentId, data) {
+// Update client adjustment
+router.put('/:id/adjustments/:adjustmentId', async (req, res, next) => {
+    try {
+        const { amount, method, details, reason } = req.body;
+
         const adjustment = await Adjustment.findOneAndUpdate(
             {
-                _id: adjustmentId,
+                _id: req.params.adjustmentId,
                 entity_type: 'client',
-                entity_id: clientId
+                entity_id: req.params.id
             },
             {
-                amount: toNumber(data.amount),
-                method: data.method,
-                details: data.details,
-                reason: data.reason
+                amount: toNumber(amount),
+                method: method?.trim() || '',
+                details: details?.trim() || '',
+                reason: reason?.trim() || ''
             },
             { new: true }
         );
 
         if (!adjustment) {
-            return null;
+            return res.status(404).json({ message: 'التسوية غير موجودة' });
         }
 
-        return {
+        res.json({
             id: adjustment._id,
             entity_type: adjustment.entity_type,
             entity_id: adjustment.entity_id,
@@ -381,28 +422,44 @@ class ClientService {
             details: adjustment.details,
             reason: adjustment.reason,
             created_at: adjustment.created_at
-        };
-    }
-
-    static async deleteClientAdjustment(clientId, adjustmentId) {
-        return await Adjustment.findOneAndDelete({
-            _id: adjustmentId,
-            entity_type: 'client',
-            entity_id: clientId
         });
+    } catch (err) {
+        next(err);
     }
+});
 
-    static async getClientDeliveriesReport(clientId, options = {}) {
-        const { from, to } = options;
+// Delete client adjustment
+router.delete('/:id/adjustments/:adjustmentId', async (req, res, next) => {
+    try {
+        const adjustment = await Adjustment.findOneAndDelete({
+            _id: req.params.adjustmentId,
+            entity_type: 'client',
+            entity_id: req.params.id
+        });
+
+        if (!adjustment) {
+            return res.status(404).json({ message: 'التسوية غير موجودة' });
+        }
+
+        res.json({ message: 'تم حذف التسوية بنجاح' });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// Get client deliveries report with date filtering
+router.get('/:id/reports/deliveries', async (req, res, next) => {
+    try {
+        const { from, to } = req.query;
 
         // Validate client exists
-        const client = await Client.findById(clientId);
+        const client = await Client.findById(req.params.id);
         if (!client) {
-            return null;
+            return res.status(404).json({ message: 'العميل غير موجود' });
         }
 
         // Build date filter
-        let dateFilter = { client_id: clientId };
+        let dateFilter = { client_id: req.params.id };
 
         if (from || to) {
             dateFilter.created_at = {};
@@ -451,7 +508,7 @@ class ClientService {
             formatted_date: formatDate(d.created_at)
         }));
 
-        return {
+        res.json({
             client: {
                 id: client._id,
                 name: client.name,
@@ -469,37 +526,10 @@ class ClientService {
                 total_net_quantity: totalNetQuantity,
                 total_value: totalValue
             }
-        };
+        });
+    } catch (err) {
+        next(err);
     }
+});
 
-    static async getPayments(clientId, query = {}) {
-        const {
-            page = 1,
-            limit = 50,
-            sort = 'paid_at',
-            order = 'desc'
-        } = query;
-
-        const sortOrder = order === 'desc' ? -1 : 1;
-        const skip = (page - 1) * limit;
-
-        const payments = await Payment.find({ client_id: clientId })
-            .sort({ [sort]: sortOrder })
-            .skip(skip)
-            .limit(parseInt(limit));
-
-        const total = await Payment.countDocuments({ client_id: clientId });
-
-        return {
-            payments,
-            pagination: {
-                page: parseInt(page),
-                limit: parseInt(limit),
-                total,
-                pages: Math.ceil(total / limit)
-            }
-        };
-    }
-}
-
-module.exports = ClientService;
+module.exports = router;

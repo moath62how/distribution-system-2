@@ -17,22 +17,22 @@ const {
   Expense
 } = require('./models');
 
-// Import API routes (refactored with MVC architecture)
-const clientsApiRouter = require('./routes/clients-refactored');
-const crushersApiRouter = require('./routes/crushers-refactored');
-const contractorsApiRouter = require('./routes/contractors-refactored');
-const deliveriesApiRouter = require('./routes/deliveries-refactored');
-const expensesApiRouter = require('./routes/expenses-refactored');
+// Import API routes (consolidated - all methods in single files)
+const clientsApiRouter = require('./routes/clients');
+const crushersApiRouter = require('./routes/crushers');
+const contractorsApiRouter = require('./routes/contractors');
+const deliveriesApiRouter = require('./routes/deliveries');
+const expensesApiRouter = require('./routes/expenses');
 
 // Import old routes for backward compatibility (v1)
-const clientsApiRouterV1 = require('./routes/clients');
-const crushersApiRouterV1 = require('./routes/crushers');
-const contractorsApiRouterV1 = require('./routes/contractors');
-const deliveriesApiRouterV1 = require('./routes/deliveries');
-const expensesApiRouterV1 = require('./routes/expenses');
+const clientsApiRouterV1 = require('./routes/clients-v1');
+const crushersApiRouterV1 = require('./routes/crushers-v1');
+const contractorsApiRouterV1 = require('./routes/contractors-v1');
+const deliveriesApiRouterV1 = require('./routes/deliveries-v1');
+const expensesApiRouterV1 = require('./routes/expenses-v1');
 
 // Import Web routes (SSR)
-const webRouter = require('./routes/web');
+// const webRouter = require('./routes/web');
 
 async function bootstrap() {
   await ensureTables();
@@ -77,14 +77,14 @@ async function bootstrap() {
   // Web routes (SSR with Pug)
   //// app.use('/', webRouter);
 
-  // API routes (refactored MVC architecture)
+  // API routes (consolidated - all methods in single files with MVC architecture)
   app.use('/api/clients', clientsApiRouter);
   app.use('/api/crushers', crushersApiRouter);
   app.use('/api/contractors', contractorsApiRouter);
   app.use('/api/deliveries', deliveriesApiRouter);
   app.use('/api/expenses', expensesApiRouter);
 
-  // API routes v1 (legacy - for backward compatibility)
+  // API routes v1 (legacy old routes - for backward compatibility)
   app.use('/api/v1/clients', clientsApiRouterV1);
   app.use('/api/v1/crushers', crushersApiRouterV1);
   app.use('/api/v1/contractors', contractorsApiRouterV1);

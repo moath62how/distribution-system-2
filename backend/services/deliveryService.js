@@ -130,13 +130,19 @@ class DeliveryService {
             quantity,
             discount_volume,
             price_per_meter,
-            material_price_at_time,
+            // Do NOT allow updating material_price_at_time to preserve historical pricing
             driver_name,
             car_head,
             car_tail,
             car_volume,
             contractor_charge_per_meter
         } = data;
+
+        // Get the existing delivery to preserve historical pricing
+        const existingDelivery = await Delivery.findById(id);
+        if (!existingDelivery) {
+            return null;
+        }
 
         const delivery = await Delivery.findByIdAndUpdate(
             id,
@@ -149,7 +155,8 @@ class DeliveryService {
                 quantity: toNumber(quantity),
                 discount_volume: toNumber(discount_volume),
                 price_per_meter: toNumber(price_per_meter),
-                material_price_at_time: toNumber(material_price_at_time),
+                // Preserve the original historical price
+                material_price_at_time: existingDelivery.material_price_at_time,
                 driver_name,
                 car_head,
                 car_tail,

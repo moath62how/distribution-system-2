@@ -1,4 +1,5 @@
 const clientService = require('../services/clientService');
+const reportService = require('../services/reportService');
 
 class ClientsController {
     // Get all clients with balances, supporting search, filter, sort, pagination
@@ -121,14 +122,15 @@ class ClientsController {
     // Add client payment
     async addClientPayment(req, res, next) {
         try {
-            const { amount, method, details, note, paid_at } = req.body;
+            const { amount, method, details, note, paid_at, payment_image } = req.body;
 
             const payment = await clientService.addClientPayment(req.params.id, {
                 amount,
                 method: method?.trim() || '',
                 details: details?.trim() || '',
                 note: note?.trim() || '',
-                paid_at: paid_at ? new Date(paid_at) : new Date()
+                paid_at: paid_at ? new Date(paid_at) : new Date(),
+                payment_image
             });
 
             res.status(201).json(payment);
@@ -140,7 +142,7 @@ class ClientsController {
     // Update client payment
     async updateClientPayment(req, res, next) {
         try {
-            const { amount, method, details, note, paid_at } = req.body;
+            const { amount, method, details, note, paid_at, payment_image } = req.body;
 
             const payment = await clientService.updateClientPayment(
                 req.params.id,
@@ -150,7 +152,8 @@ class ClientsController {
                     method: method?.trim() || '',
                     details: details?.trim() || '',
                     note: note?.trim() || '',
-                    paid_at: paid_at ? new Date(paid_at) : new Date()
+                    paid_at: paid_at ? new Date(paid_at) : new Date(),
+                    payment_image
                 }
             );
 
@@ -259,17 +262,37 @@ class ClientsController {
         try {
             const { from, to } = req.query;
 
-            const report = await clientService.getClientDeliveriesReport(req.params.id, {
-                from,
-                to
-            });
-
-            if (!report) {
-                return res.status(404).json({ message: 'العميل غير موجود' });
+            if (!from || !to) {
+                return res.status(400).json({ message: 'تاريخ البداية والنهاية مطلوبان' });
             }
 
-            res.json(report);
+            const reportData = await reportService.getDeliveriesReportData(req.params.id, from, to);
+            const html = reportService.generateDeliveriesReportHTML(reportData);
+
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.send(html);
         } catch (err) {
+            if (err.message === 'العميل غير موجود') {
+                return res.status(404).json({ message: err.message });
+            }
+            next(err);
+        }
+    }
+
+    // Get client account statement
+    async getClientAccountStatement(req, res, next) {
+        try {
+            const { from, to } = req.query;
+
+            const reportData = await reportService.getAccountStatementData(req.params.id, from, to);
+            const html = reportService.generateAccountStatementHTML(reportData);
+
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.send(html);
+        } catch (err) {
+            if (err.message === 'العميل غير موجود') {
+                return res.status(404).json({ message: err.message });
+            }
             next(err);
         }
     }

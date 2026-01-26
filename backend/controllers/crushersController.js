@@ -1,4 +1,5 @@
 const crusherService = require('../services/crusherService');
+const reportService = require('../services/reportService');
 
 class CrushersController {
     // Get all crushers
@@ -82,6 +83,31 @@ class CrushersController {
         }
     }
 
+    // Update crusher prices only
+    async updateCrusherPrices(req, res, next) {
+        try {
+            const { sand_price, aggregate1_price, aggregate2_price, aggregate3_price } = req.body;
+
+            // Get current crusher data to preserve the name
+            const currentCrusher = await crusherService.getCrusherById(req.params.id);
+            if (!currentCrusher) {
+                return res.status(404).json({ message: 'الكسارة غير موجودة' });
+            }
+
+            const crusher = await crusherService.updateCrusher(req.params.id, {
+                name: currentCrusher.crusher.name, // Preserve existing name
+                sand_price,
+                aggregate1_price,
+                aggregate2_price,
+                aggregate3_price
+            });
+
+            res.json(crusher);
+        } catch (err) {
+            next(err);
+        }
+    }
+
     // Delete crusher
     async deleteCrusher(req, res, next) {
         try {
@@ -110,14 +136,15 @@ class CrushersController {
     // Add crusher payment
     async addCrusherPayment(req, res, next) {
         try {
-            const { amount, method, details, note, paid_at } = req.body;
+            const { amount, method, details, note, paid_at, payment_image } = req.body;
 
             const payment = await crusherService.addCrusherPayment(req.params.id, {
                 amount,
                 method: method?.trim() || '',
                 details: details?.trim() || '',
                 note: note?.trim() || '',
-                paid_at: paid_at ? new Date(paid_at) : new Date()
+                paid_at: paid_at ? new Date(paid_at) : new Date(),
+                payment_image
             });
 
             res.status(201).json(payment);
@@ -129,7 +156,7 @@ class CrushersController {
     // Update crusher payment
     async updateCrusherPayment(req, res, next) {
         try {
-            const { amount, method, details, note, paid_at } = req.body;
+            const { amount, method, details, note, paid_at, payment_image } = req.body;
 
             const payment = await crusherService.updateCrusherPayment(
                 req.params.id,
@@ -139,7 +166,8 @@ class CrushersController {
                     method: method?.trim() || '',
                     details: details?.trim() || '',
                     note: note?.trim() || '',
-                    paid_at: paid_at ? new Date(paid_at) : new Date()
+                    paid_at: paid_at ? new Date(paid_at) : new Date(),
+                    payment_image
                 }
             );
 
@@ -239,6 +267,46 @@ class CrushersController {
 
             res.json({ message: 'تم حذف التسوية بنجاح' });
         } catch (err) {
+            next(err);
+        }
+    }
+
+    // Get crusher deliveries report with date filtering
+    async getCrusherDeliveriesReport(req, res, next) {
+        try {
+            const { from, to } = req.query;
+
+            if (!from || !to) {
+                return res.status(400).json({ message: 'تاريخ البداية والنهاية مطلوبان' });
+            }
+
+            const reportData = await reportService.getCrusherDeliveriesReportData(req.params.id, from, to);
+            const html = reportService.generateCrusherDeliveriesReportHTML(reportData);
+
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.send(html);
+        } catch (err) {
+            if (err.message === 'الكسارة غير موجودة') {
+                return res.status(404).json({ message: err.message });
+            }
+            next(err);
+        }
+    }
+
+    // Get crusher account statement
+    async getCrusherAccountStatement(req, res, next) {
+        try {
+            const { from, to } = req.query;
+
+            const reportData = await reportService.getCrusherAccountStatementData(req.params.id, from, to);
+            const html = reportService.generateCrusherAccountStatementHTML(reportData);
+
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.send(html);
+        } catch (err) {
+            if (err.message === 'الكسارة غير موجودة') {
+                return res.status(404).json({ message: err.message });
+            }
             next(err);
         }
     }

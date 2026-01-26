@@ -40,8 +40,9 @@ class CrusherService {
             entity_id: id
         }).sort({ created_at: -1 });
 
-        // Calculate totals
+        // Calculate totals and material breakdown
         const totals = await this.computeCrusherTotals(id);
+        const materialTotals = this.computeMaterialTotals(deliveries);
 
         return {
             crusher: {
@@ -76,7 +77,8 @@ class CrusherService {
                 method: p.method,
                 details: p.details,
                 note: p.note,
-                paid_at: p.paid_at
+                paid_at: p.paid_at,
+                payment_image: p.payment_image
             })),
             adjustments: adjustments.map(a => ({
                 id: a._id,
@@ -86,7 +88,8 @@ class CrusherService {
                 reason: a.reason,
                 created_at: a.created_at
             })),
-            totals
+            totals,
+            materialTotals
         };
     }
 
@@ -113,15 +116,18 @@ class CrusherService {
     }
 
     static async updateCrusher(id, data) {
+        const updateData = {};
+
+        // Only update fields that are provided
+        if (data.name !== undefined) updateData.name = data.name;
+        if (data.sand_price !== undefined) updateData.sand_price = toNumber(data.sand_price);
+        if (data.aggregate1_price !== undefined) updateData.aggregate1_price = toNumber(data.aggregate1_price);
+        if (data.aggregate2_price !== undefined) updateData.aggregate2_price = toNumber(data.aggregate2_price);
+        if (data.aggregate3_price !== undefined) updateData.aggregate3_price = toNumber(data.aggregate3_price);
+
         const crusher = await Crusher.findByIdAndUpdate(
             id,
-            {
-                name: data.name,
-                sand_price: toNumber(data.sand_price),
-                aggregate1_price: toNumber(data.aggregate1_price),
-                aggregate2_price: toNumber(data.aggregate2_price),
-                aggregate3_price: toNumber(data.aggregate3_price)
-            },
+            updateData,
             { new: true }
         );
 
@@ -149,16 +155,54 @@ class CrusherService {
         const payments = await CrusherPayment.find({ crusher_id: crusherId });
         const adjustments = await Adjustment.find({ entity_type: 'crusher', entity_id: crusherId });
 
-        const totalCosts = deliveries.reduce((sum, d) => sum + toNumber(d.crusher_total_cost), 0);
-        const totalPayments = payments.reduce((sum, p) => sum + toNumber(p.amount), 0);
+        // Calculate totals for crusher perspective
+        const totalRequired = deliveries.reduce((sum, d) => sum + toNumber(d.crusher_total_cost), 0);
+        const totalPaid = payments.reduce((sum, p) => sum + toNumber(p.amount), 0);
         const totalAdjustments = adjustments.reduce((sum, a) => sum + toNumber(a.amount), 0);
 
+        // Calculate final amounts
+        const totalNeeded = totalRequired + totalAdjustments; // Total we owe them after adjustments
+        const net = totalNeeded - totalPaid; // Positive = we owe them, Negative = they owe us
+
+        // Calculate volume and count
+        const totalVolume = deliveries.reduce((sum, d) => {
+            const netVolume = toNumber(d.car_volume) - toNumber(d.discount_volume);
+            return sum + netVolume;
+        }, 0);
+        const deliveriesCount = deliveries.length;
+
         return {
-            totalCosts,
-            totalPayments,
-            totalAdjustments,
-            balance: totalCosts + totalAdjustments - totalPayments
+            totalRequired,      // Base amount we owe (before adjustments)
+            totalNeeded,        // Final amount we owe (after adjustments)
+            totalPaid,          // Amount we've paid
+            totalAdjustments,   // Total adjustments
+            net,                // Net balance (positive = we owe them)
+            totalVolume,        // Total volume delivered
+            deliveriesCount     // Number of deliveries
         };
+    }
+
+    static computeMaterialTotals(deliveries) {
+        const materialMap = {};
+
+        deliveries.forEach(delivery => {
+            const material = delivery.material || 'غير محدد';
+            const netVolume = toNumber(delivery.car_volume) - toNumber(delivery.discount_volume);
+            const totalValue = toNumber(delivery.crusher_total_cost);
+
+            if (!materialMap[material]) {
+                materialMap[material] = {
+                    material,
+                    totalQty: 0,
+                    totalValue: 0
+                };
+            }
+
+            materialMap[material].totalQty += netVolume;
+            materialMap[material].totalValue += totalValue;
+        });
+
+        return Object.values(materialMap).sort((a, b) => b.totalValue - a.totalValue);
     }
 
     // Payment methods
@@ -173,7 +217,8 @@ class CrusherService {
             method: data.method,
             details: data.details,
             note: data.note,
-            paid_at: data.paid_at
+            paid_at: data.paid_at,
+            payment_image: data.payment_image
         });
 
         await payment.save();
@@ -185,7 +230,8 @@ class CrusherService {
             method: payment.method,
             details: payment.details,
             note: payment.note,
-            paid_at: payment.paid_at
+            paid_at: payment.paid_at,
+            payment_image: payment.payment_image
         };
     }
 
@@ -197,7 +243,8 @@ class CrusherService {
                 method: data.method,
                 details: data.details,
                 note: data.note,
-                paid_at: data.paid_at
+                paid_at: data.paid_at,
+                payment_image: data.payment_image
             },
             { new: true }
         );
@@ -213,7 +260,8 @@ class CrusherService {
             method: payment.method,
             details: payment.details,
             note: payment.note,
-            paid_at: payment.paid_at
+            paid_at: payment.paid_at,
+            payment_image: payment.payment_image
         };
     }
 

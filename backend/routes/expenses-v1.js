@@ -5,6 +5,51 @@ const router = express.Router();
 
 const toNumber = (v) => Number(v || 0);
 
+// Get expense statistics
+router.get('/stats', async (req, res, next) => {
+    try {
+        const expenses = await Expense.find();
+
+        // Calculate total expenses
+        const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+
+        // Group by category
+        const byCategory = expenses.reduce((acc, expense) => {
+            acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
+            return acc;
+        }, {});
+
+        // Monthly trend (last 12 months)
+        const now = new Date();
+        const monthlyTrend = [];
+
+        for (let i = 11; i >= 0; i--) {
+            const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const nextDate = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+
+            const monthExpenses = expenses.filter(expense =>
+                expense.expense_date >= date && expense.expense_date < nextDate
+            );
+
+            const total = monthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+
+            monthlyTrend.push({
+                month: date.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long' }),
+                total: total
+            });
+        }
+
+        res.json({
+            totalExpenses,
+            byCategory,
+            monthlyTrend,
+            count: expenses.length
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
 // Get all expenses
 router.get('/', async (req, res, next) => {
     try {
