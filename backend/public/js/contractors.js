@@ -77,13 +77,13 @@ function createContractorCard(contractor) {
         balanceItem.appendChild(balanceLabel);
         balanceItem.appendChild(document.createTextNode(' '));
         balanceItem.appendChild(balanceValue);
-        balanceItem.appendChild(document.createTextNode(' (مدين لنا)'));
+        balanceItem.appendChild(document.createTextNode(' (مستحق للمقاول)'));
     } else if (balance < 0) {
         balanceValue.classList.add('negative');
         balanceItem.appendChild(balanceLabel);
         balanceItem.appendChild(document.createTextNode(' '));
         balanceItem.appendChild(balanceValue);
-        balanceItem.appendChild(document.createTextNode(' (دائن لدينا)'));
+        balanceItem.appendChild(document.createTextNode(' (مستحق لنا)'));
     } else {
         balanceValue.classList.add('text-muted');
         balanceItem.appendChild(balanceLabel);
@@ -95,34 +95,31 @@ function createContractorCard(contractor) {
     financialSection.appendChild(balanceItem);
     card.appendChild(financialSection);
 
-    // Stats section (placeholder for future stats)
+    // Stats section - إضافة إجمالي التسليمات والمستحقات
     const stats = document.createElement('div');
     stats.className = 'contractor-stats';
 
-    // Add some basic stats if available
-    if (contractor.totalTrips !== undefined || contractor.totalPayments !== undefined) {
-        const statsItems = [
-            { label: 'إجمالي التسليمات', value: formatCurrency(contractor.totalTrips || 0) },
-            { label: 'إجمالي المدفوعات', value: formatCurrency(contractor.totalPayments || 0) }
-        ];
+    const statsItems = [
+        { label: 'عدد التسليمات', value: contractor.deliveriesCount || 0 },
+        { label: 'إجمالي المستحق', value: formatCurrency(contractor.totalTrips || contractor.totalEarnings || 0) }
+    ];
 
-        statsItems.forEach(stat => {
-            const statItem = document.createElement('div');
-            statItem.className = 'stat-item';
+    statsItems.forEach(stat => {
+        const statItem = document.createElement('div');
+        statItem.className = 'stat-item';
 
-            const statLabel = document.createElement('span');
-            statLabel.className = 'stat-label';
-            statLabel.textContent = stat.label + ':';
+        const statLabel = document.createElement('span');
+        statLabel.className = 'stat-label';
+        statLabel.textContent = stat.label + ':';
 
-            const statValue = document.createElement('span');
-            statValue.className = 'stat-value';
-            statValue.textContent = stat.value;
+        const statValue = document.createElement('span');
+        statValue.className = 'stat-value';
+        statValue.textContent = typeof stat.value === 'number' ? stat.value : stat.value;
 
-            statItem.appendChild(statLabel);
-            statItem.appendChild(statValue);
-            stats.appendChild(statItem);
-        });
-    }
+        statItem.appendChild(statLabel);
+        statItem.appendChild(statValue);
+        stats.appendChild(statItem);
+    });
 
     card.appendChild(stats);
     return card;

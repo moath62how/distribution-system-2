@@ -190,8 +190,32 @@
 
     <div class="main-content">
         <div class="page-header">
-            <h1 class="page-title">لوحة التحكم</h1>
-            <p class="page-subtitle">نظرة شاملة على أداء النظام المالي</p>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1 class="page-title">لوحة التحكم</h1>
+                    <p class="page-subtitle">نظرة شاملة على أداء النظام المالي</p>
+                </div>
+                <div style="display: flex; align-items: center; gap: var(--space-4);">
+                    <button id="refreshBtn" style="
+                        background: var(--primary-600);
+                        color: white;
+                        border: none;
+                        padding: var(--space-3) var(--space-4);
+                        border-radius: var(--radius);
+                        cursor: pointer;
+                        font-size: 0.875rem;
+                        display: flex;
+                        align-items: center;
+                        gap: var(--space-2);
+                    " onclick="loadDashboardData()">
+                        🔄 تحديث البيانات
+                    </button>
+                    <div id="lastUpdate" style="
+                        font-size: 0.75rem;
+                        color: var(--gray-500);
+                    ">جاري التحميل...</div>
+                </div>
+            </div>
         </div>
 
         <div class="financial-overview">
@@ -282,109 +306,36 @@
 
         async function loadDashboardData() {
             try {
-                // Load all data in parallel
-                const [metricsRes, clientsRes, contractorsRes, crushersRes, deliveriesRes, expensesRes] = await Promise.all([
-                    fetch(`${API_BASE}/metrics`),
-                    fetch(`${API_BASE}/clients`),
-                    fetch(`${API_BASE}/contractors`),
-                    fetch(`${API_BASE}/crushers`),
-                    fetch(`${API_BASE}/deliveries`),
-                    fetch(`${API_BASE}/expenses/stats`)
+                // Use only the metrics API endpoint for consistent data
+                const metricsRes = await fetch(`${API_BASE}/metrics`);
+                const metrics = await metricsRes.json();
+
+                // Load additional data for recent activity
+                const [clientsRes, contractorsRes, crushersRes] = await Promise.all([
+                    fetch(`${API_BASE}/clients?limit=5`),
+                    fetch(`${API_BASE}/contractors?limit=5`),
+                    fetch(`${API_BASE}/crushers?limit=5`)
                 ]);
 
-                const metrics = await metricsRes.json();
                 const clientsData = await clientsRes.json();
-                const contractors = await contractorsRes.json();
-                const crushers = await crushersRes.json();
-                const deliveriesData = await deliveriesRes.json();
-                const expensesStats = await expensesRes.json();
+                const contractorsData = await contractorsRes.json();
+                const crushersData = await crushersRes.json();
 
-                const clients = clientsData.clients || clientsData.data || clientsData;
-                const contractorsList = contractors.contractors || contractors.data || contractors;
-                const crushersList = crushers.crushers || crushers.data || crushers;
-                const deliveries = deliveriesData.deliveries || deliveriesData.data || deliveriesData;
+                const clients = clientsData.clients || clientsData.data || [];
+                const contractors = contractorsData.contractors || contractorsData.data || [];
+                const crushers = crushersData.crushers || crushersData.data || [];
 
-                // Debug logging to check data types
-                console.log('Data types check:');
-                console.log('clients:', Array.isArray(clients), clients);
-                console.log('contractorsList:', Array.isArray(contractorsList), contractorsList);
-                console.log('crushersList:', Array.isArray(crushersList), crushersList);
-                console.log('deliveries:', Array.isArray(deliveries), deliveries);
+                // Use metrics from API directly (no frontend calculations)
+                renderFinancialOverview(metrics);
+                renderStats(metrics, clients, contractors, crushers);
+                renderRecentActivity(clients, contractors, crushers);
 
-                // Ensure all data are arrays
-                const clientsArray = Array.isArray(clients) ? clients : [];
-                const contractorsArray = Array.isArray(contractorsList) ? contractorsList : [];
-                const crushersArray = Array.isArray(crushersList) ? crushersList : [];
-                const deliveriesArray = Array.isArray(deliveries) ? deliveries : [];
-
-                // Calculate comprehensive financial data
-                const clientsOwingUs = clientsArray.filter(c => (c.balance || 0) > 0).reduce((sum, c) => sum + c.balance, 0);
-                const clientsWeOwe = Math.abs(clientsArray.filter(c => (c.balance || 0) < 0).reduce((sum, c) => sum + c.balance, 0));
-
-                const contractorsOwingUs = contractorsArray.filter(c => (c.balance || 0) < 0).reduce((sum, c) => sum + Math.abs(c.balance), 0);
-                const contractorsWeOwe = contractorsArray.filter(c => (c.balance || 0) > 0).reduce((sum, c) => sum + c.balance, 0);
-
-                const crushersOwingUs = crushersArray.filter(c => (c.net || 0) < 0).reduce((sum, c) => sum + Math.abs(c.net), 0);
-                const crushersWeOwe = crushersArray.filter(c => (c.net || 0) > 0).reduce((sum, c) => sum + c.net, 0);
-
-                // CORRECT FINANCIAL LOGIC (matching server):
-
-                // 1. Total Sales (Revenue from clients)
-                const totalSales = deliveriesArray.reduce((sum, d) => sum + (d.total_value || 0), 0);
-
-                // 2. Total Crusher Costs (using historical prices stored in deliveries)
-                const totalCrusherCosts = deliveriesArray.reduce((sum, d) => {
-                    const netQuantity = (d.car_volume || 0) - (d.discount_volume || 0);
-                    const materialPrice = d.material_price_at_time || 0; // Historical price
-                    return sum + (netQuantity * materialPrice);
-                }, 0);
-
-                // 3. Total Contractor Costs
-                const totalContractorCosts = deliveriesArray.reduce((sum, d) => sum + (d.contractor_charge || 0), 0);
-
-                // Calculate total cash payments made (cash flow, not expenses)
-                const totalPaymentsMade = (metrics.totalClientPayments || 0) + (metrics.totalContractorPayments || 0) + (metrics.totalCrusherPayments || 0);
-
-                // Calculate total liabilities (what we owe)
-                const totalLiabilities = contractorsWeOwe + crushersWeOwe + clientsWeOwe;
-
-                // Get operating expenses (fuel, maintenance, etc.)
-                const operatingExpenses = expensesStats.totalExpenses || 0;
-
-                // Calculate total expenses (all costs incurred)
-                const totalExpenses = totalCrusherCosts + totalContractorCosts + operatingExpenses;
-
-                // Calculate net profit (sales - all expenses, independent of cash flow)
-                const netProfit = totalSales - totalExpenses;
-
-                // Net position (receivables - payables)
-                const totalReceivables = clientsOwingUs + contractorsOwingUs + crushersOwingUs;
-                const netPosition = totalReceivables - totalLiabilities;
-
-                renderFinancialOverview({
-                    totalSales,
-                    totalCrusherCosts,
-                    totalContractorCosts,
-                    totalPayments: totalPaymentsMade,
-                    totalLiabilities,
-                    totalExpenses,
-                    operatingExpenses,
-                    netProfit,
-                    netPosition
-                });
-
-                renderStats({
-                    totalClients: clientsArray.length,
-                    totalContractors: contractorsArray.length,
-                    totalCrushers: crushersArray.length,
-                    totalDeliveries: deliveriesArray.length,
-                    clientsOwingUs,
-                    clientsWeOwe,
-                    contractorsWeOwe,
-                    crushersWeOwe
-                });
-
-                renderRecentActivity(clientsArray, contractorsArray, crushersArray);
+                // Update last refresh time
+                const lastUpdateEl = document.getElementById('lastUpdate');
+                if (lastUpdateEl) {
+                    const now = new Date().toLocaleString('ar-EG');
+                    lastUpdateEl.textContent = `آخر تحديث: ${now}`;
+                }
 
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
@@ -397,80 +348,87 @@
             }
         }
 
-        function renderFinancialOverview(data) {
+        function renderFinancialOverview(metrics) {
             const container = document.getElementById('financialOverview');
             container.innerHTML = `
                 <div class="financial-item">
-                    <div class="financial-value">${formatCurrency(data.totalSales)}</div>
+                    <div class="financial-value">${formatCurrency(metrics.totalSales)}</div>
                     <div class="financial-label">إجمالي المبيعات</div>
                 </div>
                 <div class="financial-item">
-                    <div class="financial-value">${formatCurrency(data.totalCrusherCosts)}</div>
+                    <div class="financial-value">${formatCurrency(metrics.totalCrusherCosts)}</div>
                     <div class="financial-label">تكلفة الكسارات</div>
                 </div>
                 <div class="financial-item">
-                    <div class="financial-value">${formatCurrency(data.totalContractorCosts)}</div>
+                    <div class="financial-value">${formatCurrency(metrics.totalContractorCosts)}</div>
                     <div class="financial-label">تكلفة المقاولين</div>
                 </div>
                 <div class="financial-item">
-                    <div class="financial-value">${formatCurrency(data.operatingExpenses)}</div>
+                    <div class="financial-value">${formatCurrency(metrics.operatingExpenses)}</div>
                     <div class="financial-label">المصروفات التشغيلية</div>
                 </div>
                 <div class="financial-item">
-                    <div class="financial-value">${formatCurrency(data.totalExpenses)}</div>
+                    <div class="financial-value">${formatCurrency(metrics.totalExpenses)}</div>
                     <div class="financial-label">إجمالي المصروفات</div>
                 </div>
                 <div class="financial-item">
-                    <div class="financial-value ${data.netProfit >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(data.netProfit)}</div>
+                    <div class="financial-value ${metrics.netProfit >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(metrics.netProfit)}</div>
                     <div class="financial-label">صافي الربح</div>
                 </div>
                 <div class="financial-item">
-                    <div class="financial-value">${formatCurrency(data.totalPayments)}</div>
+                    <div class="financial-value">${formatCurrency(metrics.totalCashPayments)}</div>
                     <div class="financial-label">إجمالي المدفوعات النقدية</div>
                 </div>
             `;
         }
 
-        function renderStats(data) {
+        function renderStats(metrics, clients, contractors, crushers) {
             const container = document.getElementById('statsGrid');
+            
+            // Calculate balance summaries from actual data
+            const clientsOwingUs = clients.filter(c => (c.balance || 0) > 0).reduce((sum, c) => sum + c.balance, 0);
+            const clientsWeOwe = Math.abs(clients.filter(c => (c.balance || 0) < 0).reduce((sum, c) => sum + c.balance, 0));
+            const contractorsWeOwe = contractors.filter(c => (c.balance || 0) > 0).reduce((sum, c) => sum + c.balance, 0);
+            const crushersWeOwe = crushers.filter(c => (c.net || 0) > 0).reduce((sum, c) => sum + c.net, 0);
+            
             container.innerHTML = `
                 <div class="stat-card">
-                    <div class="stat-value">${data.totalClients}</div>
+                    <div class="stat-value">${metrics.totalClients}</div>
                     <div class="stat-label">إجمالي العملاء</div>
-                    <div class="stat-change positive">+${data.totalClients} عميل نشط</div>
+                    <div class="stat-change positive">عميل نشط</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">${data.totalContractors}</div>
+                    <div class="stat-value">${metrics.totalContractors}</div>
                     <div class="stat-label">مقاولو النقل</div>
-                    <div class="stat-change positive">+${data.totalContractors} مقاول نشط</div>
+                    <div class="stat-change positive">مقاول نشط</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">${data.totalCrushers}</div>
+                    <div class="stat-value">${metrics.totalCrushers}</div>
                     <div class="stat-label">الكسارات</div>
-                    <div class="stat-change positive">+${data.totalCrushers} كسارة نشطة</div>
+                    <div class="stat-change positive">كسارة نشطة</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">${data.totalDeliveries}</div>
+                    <div class="stat-value">${metrics.totalDeliveries}</div>
                     <div class="stat-label">إجمالي التسليمات</div>
                     <div class="stat-change positive">عملية تسليم مكتملة</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value text-success">${formatCurrency(data.clientsOwingUs)}</div>
+                    <div class="stat-value text-success">${formatCurrency(clientsOwingUs)}</div>
                     <div class="stat-label">مستحقات العملاء</div>
                     <div class="stat-change positive">مبالغ مستحقة لنا</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value text-danger">${formatCurrency(data.clientsWeOwe)}</div>
+                    <div class="stat-value text-danger">${formatCurrency(clientsWeOwe)}</div>
                     <div class="stat-label">مستحقات للعملاء</div>
                     <div class="stat-change negative">مبالغ مستحقة للعملاء</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value text-danger">${formatCurrency(data.contractorsWeOwe)}</div>
+                    <div class="stat-value text-danger">${formatCurrency(contractorsWeOwe)}</div>
                     <div class="stat-label">مستحقات المقاولين</div>
                     <div class="stat-change negative">مبالغ مستحقة للمقاولين</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value text-danger">${formatCurrency(data.crushersWeOwe)}</div>
+                    <div class="stat-value text-danger">${formatCurrency(crushersWeOwe)}</div>
                     <div class="stat-label">مستحقات الكسارات</div>
                     <div class="stat-change negative">مبالغ مستحقة للكسارات</div>
                 </div>
@@ -535,8 +493,39 @@
             `).join('');
         }
 
-        // Load data when page loads
-        document.addEventListener('DOMContentLoaded', loadDashboardData);
+        // Auto-refresh functionality
+        let autoRefreshInterval;
+
+        function startAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+            autoRefreshInterval = setInterval(loadDashboardData, 30000); // Refresh every 30 seconds
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+
+        // Load data when page loads and start auto-refresh
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboardData();
+            startAutoRefresh();
+        });
+
+        // Stop auto-refresh when page is hidden/closed
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                stopAutoRefresh();
+            } else {
+                startAutoRefresh();
+            }
+        });
+
+        window.addEventListener('beforeunload', stopAutoRefresh);
     </script>
 </body>
 

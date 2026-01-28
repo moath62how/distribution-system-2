@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Crushers Fix</title>
+</head>
+<body>
+    <h1>Testing Crushers API Fix</h1>
+    <div id="results"></div>
+
+    <script>
+        async function testCrushersAPI() {
+            try {
+                const response = await fetch('http://localhost:5000/api/crushers');
+                const data = await response.json();
+                
+                console.log('Crushers API Response:', data);
+                
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = '<h2>API Response:</h2><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                
+                // Check if crushers have the new calculated fields
+                if (data.crushers && data.crushers.length > 0) {
+                    const firstCrusher = data.crushers[0];
+                    const hasCalculatedFields = 'totalVolume' in firstCrusher && 'deliveriesCount' in firstCrusher && 'net' in firstCrusher;
+                    
+                    resultsDiv.innerHTML += '<h2>Fix Status:</h2>';
+                    resultsDiv.innerHTML += hasCalculatedFields ? 
+                        '<p style="color: green;">✅ FIX SUCCESSFUL - Calculated fields are now included!</p>' :
+                        '<p style="color: red;">❌ FIX FAILED - Calculated fields are missing</p>';
+                } else {
+                    resultsDiv.innerHTML += '<h2>Fix Status:</h2><p style="color: orange;">⚠️ No crushers found to test</p>';
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('results').innerHTML = '<p style="color: red;">Error: ' + error.message + '</p>';
+            }
+        }
+        
+        // Test when page loads
+        window.addEventListener('load', testCrushersAPI);
+    </script>
+</body>
+</html>

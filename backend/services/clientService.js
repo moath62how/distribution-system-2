@@ -124,8 +124,6 @@ class ClientService {
             adjustments: adjustments.map(a => ({
                 id: a._id,
                 amount: a.amount,
-                method: a.method,
-                details: a.details,
                 reason: a.reason,
                 created_at: a.created_at
             })),
@@ -333,8 +331,6 @@ class ClientService {
             entity_type: 'client',
             entity_id: clientId,
             amount: toNumber(data.amount),
-            method: data.method,
-            details: data.details,
             reason: data.reason
         });
 
@@ -345,8 +341,6 @@ class ClientService {
             entity_type: adjustment.entity_type,
             entity_id: adjustment.entity_id,
             amount: adjustment.amount,
-            method: adjustment.method,
-            details: adjustment.details,
             reason: adjustment.reason,
             created_at: adjustment.created_at
         };
@@ -361,8 +355,6 @@ class ClientService {
             },
             {
                 amount: toNumber(data.amount),
-                method: data.method,
-                details: data.details,
                 reason: data.reason
             },
             { new: true }
@@ -377,8 +369,6 @@ class ClientService {
             entity_type: adjustment.entity_type,
             entity_id: adjustment.entity_id,
             amount: adjustment.amount,
-            method: adjustment.method,
-            details: adjustment.details,
             reason: adjustment.reason,
             created_at: adjustment.created_at
         };

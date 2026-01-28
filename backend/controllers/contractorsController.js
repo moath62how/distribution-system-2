@@ -104,14 +104,15 @@ class ContractorsController {
     // Add contractor payment
     async addContractorPayment(req, res, next) {
         try {
-            const { amount, method, details, note, paid_at } = req.body;
+            const { amount, method, details, note, paid_at, payment_image } = req.body;
 
             const payment = await contractorService.addContractorPayment(req.params.id, {
                 amount,
                 method: method?.trim() || '',
                 details: details?.trim() || '',
                 note: note?.trim() || '',
-                paid_at: paid_at ? new Date(paid_at) : new Date()
+                paid_at: paid_at ? new Date(paid_at) : new Date(),
+                payment_image
             });
 
             res.status(201).json(payment);
@@ -123,7 +124,7 @@ class ContractorsController {
     // Update contractor payment
     async updateContractorPayment(req, res, next) {
         try {
-            const { amount, method, details, note, paid_at } = req.body;
+            const { amount, method, details, note, paid_at, payment_image } = req.body;
 
             const payment = await contractorService.updateContractorPayment(
                 req.params.id,
@@ -133,7 +134,8 @@ class ContractorsController {
                     method: method?.trim() || '',
                     details: details?.trim() || '',
                     note: note?.trim() || '',
-                    paid_at: paid_at ? new Date(paid_at) : new Date()
+                    paid_at: paid_at ? new Date(paid_at) : new Date(),
+                    payment_image
                 }
             );
 
@@ -178,12 +180,10 @@ class ContractorsController {
     // Add contractor adjustment
     async addContractorAdjustment(req, res, next) {
         try {
-            const { amount, method, details, reason } = req.body;
+            const { amount, reason } = req.body;
 
             const adjustment = await contractorService.addContractorAdjustment(req.params.id, {
                 amount,
-                method: method?.trim() || '',
-                details: details?.trim() || '',
                 reason: reason?.trim() || ''
             });
 
@@ -196,15 +196,13 @@ class ContractorsController {
     // Update contractor adjustment
     async updateContractorAdjustment(req, res, next) {
         try {
-            const { amount, method, details, reason } = req.body;
+            const { amount, reason } = req.body;
 
             const adjustment = await contractorService.updateContractorAdjustment(
                 req.params.id,
                 req.params.adjustmentId,
                 {
                     amount,
-                    method: method?.trim() || '',
-                    details: details?.trim() || '',
                     reason: reason?.trim() || ''
                 }
             );
@@ -232,6 +230,103 @@ class ContractorsController {
             }
 
             res.json({ message: 'تم حذف التسوية بنجاح' });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // Generate deliveries report
+    async generateDeliveriesReport(req, res, next) {
+        try {
+            const contractorId = req.params.id;
+            const { from, to } = req.query;
+
+            // For now, return a simple JSON response
+            // In the future, this could generate PDF or Excel reports
+            const contractor = await contractorService.getContractorById(contractorId);
+            
+            if (!contractor) {
+                return res.status(404).json({ message: 'المقاول غير موجود' });
+            }
+
+            // Filter deliveries by date range if provided
+            let deliveries = contractor.deliveries || [];
+            if (from && to) {
+                const fromDate = new Date(from);
+                const toDate = new Date(to);
+                deliveries = deliveries.filter(delivery => {
+                    const deliveryDate = new Date(delivery.created_at);
+                    return deliveryDate >= fromDate && deliveryDate <= toDate;
+                });
+            }
+
+            res.json({
+                contractor: {
+                    name: contractor.contractor.name,
+                    id: contractor.contractor.id
+                },
+                period: { from, to },
+                deliveries,
+                summary: {
+                    totalDeliveries: deliveries.length,
+                    totalAmount: deliveries.reduce((sum, d) => sum + (d.contractor_total_charge || 0), 0)
+                }
+            });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // Generate account statement
+    async generateAccountStatement(req, res, next) {
+        try {
+            const contractorId = req.params.id;
+            const { from, to } = req.query;
+
+            const contractor = await contractorService.getContractorById(contractorId);
+            
+            if (!contractor) {
+                return res.status(404).json({ message: 'المقاول غير موجود' });
+            }
+
+            // Filter data by date range if provided
+            let deliveries = contractor.deliveries || [];
+            let payments = contractor.payments || [];
+            let adjustments = contractor.adjustments || [];
+
+            if (from && to) {
+                const fromDate = new Date(from);
+                const toDate = new Date(to);
+                
+                deliveries = deliveries.filter(d => {
+                    const date = new Date(d.created_at);
+                    return date >= fromDate && date <= toDate;
+                });
+                
+                payments = payments.filter(p => {
+                    const date = new Date(p.paid_at);
+                    return date >= fromDate && date <= toDate;
+                });
+                
+                adjustments = adjustments.filter(a => {
+                    const date = new Date(a.created_at);
+                    return date >= fromDate && date <= toDate;
+                });
+            }
+
+            res.json({
+                contractor: {
+                    name: contractor.contractor.name,
+                    id: contractor.contractor.id
+                },
+                period: { from, to },
+                transactions: {
+                    deliveries,
+                    payments,
+                    adjustments
+                },
+                totals: contractor.totals
+            });
         } catch (err) {
             next(err);
         }

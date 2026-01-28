@@ -9,12 +9,6 @@ class ExpenseService {
         // Calculate total expenses
         const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
 
-        // Group by category
-        const byCategory = expenses.reduce((acc, expense) => {
-            acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
-            return acc;
-        }, {});
-
         // Monthly trend (last 12 months)
         const now = new Date();
         const monthlyTrend = [];
@@ -37,7 +31,6 @@ class ExpenseService {
 
         return {
             totalExpenses,
-            byCategory,
             monthlyTrend,
             count: expenses.length
         };
@@ -49,7 +42,6 @@ class ExpenseService {
         const result = expenses.map(expense => ({
             id: expense._id,
             expense_date: expense.expense_date,
-            category: expense.category,
             description: expense.description,
             amount: expense.amount,
             notes: expense.notes,
@@ -72,7 +64,6 @@ class ExpenseService {
         return {
             id: expense._id,
             expense_date: expense.expense_date,
-            category: expense.category,
             description: expense.description,
             amount: expense.amount,
             notes: expense.notes,
@@ -84,15 +75,14 @@ class ExpenseService {
     }
 
     static async createExpense(data) {
-        const { expense_date, category, description, amount, notes, method, details } = data;
+        const { expense_date, description, amount, notes, method, details } = data;
 
-        if (!expense_date || !category || !description || !amount) {
-            throw new Error('التاريخ والفئة والوصف والمبلغ مطلوبة');
+        if (!expense_date || !description || !amount) {
+            throw new Error('التاريخ والوصف والمبلغ مطلوبة');
         }
 
         const expense = new Expense({
             expense_date: new Date(expense_date),
-            category: category.trim(),
             description: description.trim(),
             amount: toNumber(amount),
             notes: notes?.trim() || '',
@@ -105,7 +95,6 @@ class ExpenseService {
         return {
             id: expense._id,
             expense_date: expense.expense_date,
-            category: expense.category,
             description: expense.description,
             amount: expense.amount,
             notes: expense.notes,
@@ -117,17 +106,16 @@ class ExpenseService {
     }
 
     static async updateExpense(id, data) {
-        const { expense_date, category, description, amount, notes, method, details } = data;
+        const { expense_date, description, amount, notes, method, details } = data;
 
-        if (!expense_date || !category || !description || !amount) {
-            throw new Error('التاريخ والفئة والوصف والمبلغ مطلوبة');
+        if (!expense_date || !description || !amount) {
+            throw new Error('التاريخ والوصف والمبلغ مطلوبة');
         }
 
         const expense = await Expense.findByIdAndUpdate(
             id,
             {
                 expense_date: new Date(expense_date),
-                category: category.trim(),
                 description: description.trim(),
                 amount: toNumber(amount),
                 notes: notes?.trim() || '',
@@ -144,7 +132,6 @@ class ExpenseService {
         return {
             id: expense._id,
             expense_date: expense.expense_date,
-            category: expense.category,
             description: expense.description,
             amount: expense.amount,
             notes: expense.notes,
@@ -162,7 +149,6 @@ class ExpenseService {
     // Get expenses with filtering and pagination
     static async getExpensesWithFilters(query = {}) {
         const {
-            category,
             from_date,
             to_date,
             page = 1,
@@ -172,8 +158,6 @@ class ExpenseService {
         } = query;
 
         let filter = {};
-
-        if (category) filter.category = { $regex: category, $options: 'i' };
 
         if (from_date || to_date) {
             filter.expense_date = {};
@@ -198,7 +182,6 @@ class ExpenseService {
         const result = expenses.map(expense => ({
             id: expense._id,
             expense_date: expense.expense_date,
-            category: expense.category,
             description: expense.description,
             amount: expense.amount,
             notes: expense.notes,

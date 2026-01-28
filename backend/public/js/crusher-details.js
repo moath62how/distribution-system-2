@@ -366,6 +366,7 @@ function renderAdjustments(adjustments) {
         // Actions cell
         const actionsCell = document.createElement('td');
         actionsCell.innerHTML = `
+            <button class="btn btn-sm btn-secondary crud-btn" data-action="view" data-type="adjustment" data-id="${adjustment.id}" title="عرض التفاصيل">👁️</button>
             <button class="btn btn-sm btn-secondary crud-btn" data-action="edit" data-type="adjustment" data-id="${adjustment.id}" title="تعديل">✏️</button>
             <button class="btn btn-sm btn-danger crud-btn" data-action="delete" data-type="adjustment" data-id="${adjustment.id}" title="حذف">🗑️</button>
         `;
@@ -429,17 +430,13 @@ function renderPayments(payments) {
 
         // Image cell
         const imageCell = document.createElement('td');
-        if (payment.payment_image) {
-            const imageBtn = document.createElement('button');
-            imageBtn.className = 'btn btn-sm btn-secondary';
-            imageBtn.title = 'عرض الصورة';
-            imageBtn.innerHTML = '🖼️ عرض';
-            imageBtn.setAttribute('data-image', payment.payment_image);
-            imageBtn.onclick = function () {
-                const imageData = this.getAttribute('data-image');
-                showImageModal(imageData);
-            };
-            imageCell.appendChild(imageBtn);
+
+        if (payment.payment_image && payment.payment_image !== 'null' && payment.payment_image.trim() !== '') {
+            imageCell.innerHTML = `
+                <button class="btn btn-sm btn-secondary" data-image="${payment.payment_image}" onclick="showImageModal(this.getAttribute('data-image'))" title="عرض الصورة">
+                    🖼️ عرض
+                </button>
+            `;
         } else {
             imageCell.textContent = '-';
         }
@@ -448,6 +445,7 @@ function renderPayments(payments) {
         // Actions cell
         const actionsCell = document.createElement('td');
         actionsCell.innerHTML = `
+            <button class="btn btn-sm btn-secondary crud-btn" data-action="view" data-type="payment" data-id="${payment.id}" title="عرض التفاصيل">👁️</button>
             <button class="btn btn-sm btn-secondary crud-btn" data-action="edit" data-type="payment" data-id="${payment.id}" title="تعديل">✏️</button>
             <button class="btn btn-sm btn-danger crud-btn" data-action="delete" data-type="payment" data-id="${payment.id}" title="حذف">🗑️</button>
         `;
@@ -1253,6 +1251,130 @@ async function updateCrusher(crusherId, crusherData) {
     }
 }
 
+// View payment details
+async function showPaymentDetails(paymentId) {
+    try {
+        // Find payment in current data
+        const payment = allPayments.find(p => p.id === paymentId);
+        if (!payment) {
+            alert('لم يتم العثور على الدفعة');
+            return;
+        }
+
+        // Create details content
+        let detailsHTML = `
+            <div style="display: grid; gap: 15px;">
+                <div class="detail-row">
+                    <strong>التاريخ:</strong>
+                    <span>${formatDate(payment.paid_at)}</span>
+                </div>
+                <div class="detail-row">
+                    <strong>المبلغ:</strong>
+                    <span class="text-success">${formatCurrency(payment.amount)}</span>
+                </div>
+                <div class="detail-row">
+                    <strong>طريقة الدفع:</strong>
+                    <span>${payment.method || 'غير محدد'}</span>
+                </div>
+        `;
+
+        // Add details if exists
+        if (payment.details) {
+            detailsHTML += `
+                <div class="detail-row">
+                    <strong>التفاصيل:</strong>
+                    <span>${payment.details}</span>
+                </div>
+            `;
+        }
+
+        // Add notes if exists
+        if (payment.note) {
+            detailsHTML += `
+                <div class="detail-row">
+                    <strong>الملاحظات:</strong>
+                    <span>${payment.note}</span>
+                </div>
+            `;
+        }
+
+        // Add image if exists
+        if (payment.payment_image) {
+            detailsHTML += `
+                <div class="detail-row">
+                    <strong>الصورة:</strong>
+                    <div>
+                        <button class="btn btn-sm btn-secondary" onclick="showImageModal('${payment.payment_image}')" style="margin-top: 5px;">
+                            🖼️ عرض الصورة
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        detailsHTML += `</div>`;
+
+        // Populate modal content
+        document.getElementById('paymentDetailsContent').innerHTML = detailsHTML;
+
+        // Show modal
+        showModal('paymentDetailsModal');
+    } catch (error) {
+        console.error('Error viewing payment:', error);
+        alert('حدث خطأ في عرض تفاصيل الدفعة');
+    }
+}
+
+// View adjustment details
+async function showAdjustmentDetails(adjustmentId) {
+    try {
+        // Find adjustment in current data
+        const adjustment = allAdjustments.find(a => a.id === adjustmentId);
+        if (!adjustment) {
+            alert('لم يتم العثور على التسوية');
+            return;
+        }
+
+        // Create details content
+        const amount = adjustment.amount || 0;
+        const amountClass = amount >= 0 ? 'text-success' : 'text-danger';
+
+        let detailsHTML = `
+            <div style="display: grid; gap: 15px;">
+                <div class="detail-row">
+                    <strong>التاريخ:</strong>
+                    <span>${formatDate(adjustment.created_at)}</span>
+                </div>
+                <div class="detail-row">
+                    <strong>المبلغ:</strong>
+                    <span class="${amountClass}">${formatCurrency(Math.abs(amount))}</span>
+                </div>
+                <div class="detail-row">
+                    <strong>طريقة التسوية:</strong>
+                    <span>${adjustment.method || 'غير محدد'}</span>
+                </div>
+                <div class="detail-row">
+                    <strong>التفاصيل:</strong>
+                    <span>${adjustment.details || 'لا توجد تفاصيل'}</span>
+                </div>
+                <div class="detail-row">
+                    <strong>السبب:</strong>
+                    <span>${adjustment.reason || 'غير محدد'}</span>
+                </div>
+            </div>
+        `;
+
+        // Populate modal content
+        document.getElementById('adjustmentDetailsContent').innerHTML = detailsHTML;
+
+        // Show modal
+        showModal('adjustmentDetailsModal');
+    } catch (error) {
+        console.error('Error viewing adjustment:', error);
+        alert('حدث خطأ في عرض تفاصيل التسوية');
+    }
+}
+
 function setupEditCrusherHandlers() {
     console.log('Setting up edit crusher handlers...');
 
@@ -1353,6 +1475,13 @@ window.showImageModal = function (imageData) {
 };
 
 // CRUD functions for payments
+window.viewPayment = function (paymentId) {
+    console.log('viewPayment called with ID:', paymentId);
+    showPaymentDetails(paymentId).catch(error => {
+        console.error('Error in showPaymentDetails:', error);
+    });
+};
+
 window.editPayment = function (paymentId) {
     console.log('editPayment called with ID:', paymentId);
     const payment = allPayments.find(p => p.id === paymentId);
@@ -1416,6 +1545,13 @@ window.deletePayment = function (paymentId) {
 };
 
 // CRUD functions for adjustments
+window.viewAdjustment = function (adjustmentId) {
+    console.log('viewAdjustment called with ID:', adjustmentId);
+    showAdjustmentDetails(adjustmentId).catch(error => {
+        console.error('Error in showAdjustmentDetails:', error);
+    });
+};
+
 window.editAdjustment = function (adjustmentId) {
     console.log('editAdjustment called with ID:', adjustmentId);
     const adjustment = allAdjustments.find(a => a.id === adjustmentId);
@@ -1594,19 +1730,64 @@ window.toggleDateInputs = function () {
     }
 };
 
-// Event delegation for CSP compliance - SIMPLIFIED
+// Event delegation for CSP compliance - ENHANCED
 document.addEventListener('click', function (e) {
     const action = e.target.getAttribute('data-action');
     const target = e.target.getAttribute('data-target');
+    const type = e.target.getAttribute('data-type');
+    const id = e.target.getAttribute('data-id');
 
     console.log('Click detected on element:', e.target);
-    console.log('data-action:', action);
-    console.log('data-target:', target);
+    console.log('data-action:', action, 'data-type:', type, 'data-id:', id);
 
-    // ONLY handle data-action attributes - NO TEXT MATCHING
+    // Handle modal close
     if (action === 'close-modal' && target) {
         console.log('Closing modal:', target);
         closeModal(target);
+        return;
     }
-    // Remove all other event handling to prevent unwanted triggers
+
+    // Handle CRUD operations for dynamically created buttons
+    if (e.target.classList.contains('crud-btn')) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!action || !type || !id) {
+            console.error('❌ Missing required attributes:', { action, type, id });
+            return;
+        }
+
+        try {
+            if (action === 'view' && type === 'payment') {
+                console.log('👁️ Calling showPaymentDetails with ID:', id);
+                showPaymentDetails(id);
+            } else if (action === 'edit' && type === 'payment') {
+                console.log('✏️ Calling editPayment with ID:', id);
+                editPayment(id);
+            } else if (action === 'delete' && type === 'payment') {
+                console.log('🗑️ Calling deletePayment with ID:', id);
+                deletePayment(id);
+            } else if (action === 'view' && type === 'adjustment') {
+                console.log('👁️ Calling showAdjustmentDetails with ID:', id);
+                showAdjustmentDetails(id);
+            } else if (action === 'edit' && type === 'adjustment') {
+                console.log('✏️ Calling editAdjustment with ID:', id);
+                editAdjustment(id);
+            } else if (action === 'delete' && type === 'adjustment') {
+                console.log('🗑️ Calling deleteAdjustment with ID:', id);
+                deleteAdjustment(id);
+            } else if (action === 'edit' && type === 'delivery') {
+                console.log('✏️ Calling editDelivery with ID:', id);
+                editDelivery(id);
+            } else if (action === 'delete' && type === 'delivery') {
+                console.log('🗑️ Calling deleteDelivery with ID:', id);
+                deleteDelivery(id);
+            } else {
+                console.warn('⚠️ Unhandled CRUD operation:', { action, type, id });
+            }
+        } catch (error) {
+            console.error('💥 Error executing CRUD operation:', error);
+        }
+        return;
+    }
 });

@@ -206,7 +206,7 @@ function renderExpenses(expenses) {
     // Header
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
-    const headers = ['التاريخ', 'الفئة', 'الوصف', 'المبلغ', 'ملاحظات', 'الإجراءات'];
+    const headers = ['التاريخ', 'الوصف', 'المبلغ', 'ملاحظات', 'الإجراءات'];
 
     headers.forEach(header => {
         const th = document.createElement('th');
@@ -225,11 +225,6 @@ function renderExpenses(expenses) {
         const dateCell = document.createElement('td');
         dateCell.textContent = formatDate(expense.expense_date);
         row.appendChild(dateCell);
-
-        // Category
-        const categoryCell = document.createElement('td');
-        categoryCell.textContent = expense.category;
-        row.appendChild(categoryCell);
 
         // Description
         const descCell = document.createElement('td');
@@ -340,7 +335,6 @@ function populateCategories() {
 function editExpense(expense) {
     document.getElementById('editExpenseId').value = expense.id;
     document.getElementById('editExpenseDate').value = expense.expense_date;
-    document.getElementById('editExpenseCategory').value = expense.category;
     document.getElementById('editExpenseDescription').value = expense.description;
     document.getElementById('editExpenseAmount').value = expense.amount;
     document.getElementById('editExpenseNotes').value = expense.notes || '';
@@ -380,7 +374,6 @@ function setupEventHandlers() {
 
         const expenseData = {
             expense_date: document.getElementById('expenseDate').value,
-            category: document.getElementById('expenseCategory').value,
             description: document.getElementById('expenseDescription').value,
             amount: document.getElementById('expenseAmount').value,
             notes: document.getElementById('expenseNotes').value

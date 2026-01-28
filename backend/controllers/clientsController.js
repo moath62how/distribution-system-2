@@ -198,12 +198,10 @@ class ClientsController {
     // Add client adjustment
     async addClientAdjustment(req, res, next) {
         try {
-            const { amount, method, details, reason } = req.body;
+            const { amount, reason } = req.body;
 
             const adjustment = await clientService.addClientAdjustment(req.params.id, {
                 amount,
-                method: method?.trim() || '',
-                details: details?.trim() || '',
                 reason: reason?.trim() || ''
             });
 
@@ -216,15 +214,13 @@ class ClientsController {
     // Update client adjustment
     async updateClientAdjustment(req, res, next) {
         try {
-            const { amount, method, details, reason } = req.body;
+            const { amount, reason } = req.body;
 
             const adjustment = await clientService.updateClientAdjustment(
                 req.params.id,
                 req.params.adjustmentId,
                 {
                     amount,
-                    method: method?.trim() || '',
-                    details: details?.trim() || '',
                     reason: reason?.trim() || ''
                 }
             );

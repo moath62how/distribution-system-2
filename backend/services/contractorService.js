@@ -6,12 +6,29 @@ class ContractorService {
     static async getAllContractors() {
         const contractors = await Contractor.find().sort({ name: 1 });
 
-        const result = contractors.map(contractor => ({
-            id: contractor._id,
-            name: contractor.name,
-            opening_balance: contractor.opening_balance,
-            created_at: contractor.created_at
-        }));
+        // Calculate totals for each contractor
+        const result = await Promise.all(
+            contractors.map(async (contractor) => {
+                const totals = await this.computeContractorTotals(contractor._id);
+                
+                // Count deliveries for this contractor
+                const deliveriesCount = await Delivery.countDocuments({ contractor_id: contractor._id });
+                
+                return {
+                    id: contractor._id,
+                    name: contractor.name,
+                    opening_balance: contractor.opening_balance,
+                    created_at: contractor.created_at,
+                    // Add calculated totals (using correct field names from computeContractorTotals)
+                    balance: totals.balance,
+                    totalEarnings: totals.totalEarnings,
+                    totalPayments: totals.totalPayments,
+                    totalAdjustments: totals.totalAdjustments,
+                    deliveriesCount: totals.deliveriesCount,
+                    totalTrips: totals.totalTrips
+                };
+            })
+        );
 
         return { contractors: result };
     }
@@ -70,13 +87,12 @@ class ContractorService {
                 method: p.method,
                 details: p.details,
                 note: p.note,
-                paid_at: p.paid_at
+                paid_at: p.paid_at,
+                payment_image: p.payment_image
             })),
             adjustments: adjustments.map(a => ({
                 id: a._id,
                 amount: a.amount,
-                method: a.method,
-                details: a.details,
                 reason: a.reason,
                 created_at: a.created_at
             })),
@@ -143,7 +159,10 @@ class ContractorService {
             totalEarnings,
             totalPayments,
             totalAdjustments,
-            balance: opening + totalEarnings + totalAdjustments - totalPayments
+            balance: opening + totalEarnings + totalAdjustments - totalPayments,
+            // إضافة إجمالي المشاوير
+            totalTrips: totalEarnings,
+            deliveriesCount: deliveries.length
         };
     }
 
@@ -159,7 +178,8 @@ class ContractorService {
             method: data.method,
             details: data.details,
             note: data.note,
-            paid_at: data.paid_at
+            paid_at: data.paid_at,
+            payment_image: data.payment_image
         });
 
         await payment.save();
@@ -171,7 +191,8 @@ class ContractorService {
             method: payment.method,
             details: payment.details,
             note: payment.note,
-            paid_at: payment.paid_at
+            paid_at: payment.paid_at,
+            payment_image: payment.payment_image
         };
     }
 
@@ -183,7 +204,8 @@ class ContractorService {
                 method: data.method,
                 details: data.details,
                 note: data.note,
-                paid_at: data.paid_at
+                paid_at: data.paid_at,
+                payment_image: data.payment_image
             },
             { new: true }
         );
@@ -199,7 +221,8 @@ class ContractorService {
             method: payment.method,
             details: payment.details,
             note: payment.note,
-            paid_at: payment.paid_at
+            paid_at: payment.paid_at,
+            payment_image: payment.payment_image
         };
     }
 
@@ -223,8 +246,6 @@ class ContractorService {
             entity_type: 'contractor',
             entity_id: contractorId,
             amount: toNumber(data.amount),
-            method: data.method,
-            details: data.details,
             reason: data.reason
         });
 
@@ -235,8 +256,6 @@ class ContractorService {
             entity_type: adjustment.entity_type,
             entity_id: adjustment.entity_id,
             amount: adjustment.amount,
-            method: adjustment.method,
-            details: adjustment.details,
             reason: adjustment.reason,
             created_at: adjustment.created_at
         };
@@ -251,8 +270,6 @@ class ContractorService {
             },
             {
                 amount: toNumber(data.amount),
-                method: data.method,
-                details: data.details,
                 reason: data.reason
             },
             { new: true }
@@ -267,8 +284,6 @@ class ContractorService {
             entity_type: adjustment.entity_type,
             entity_id: adjustment.entity_id,
             amount: adjustment.amount,
-            method: adjustment.method,
-            details: adjustment.details,
             reason: adjustment.reason,
             created_at: adjustment.created_at
         };

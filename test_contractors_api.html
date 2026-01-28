@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Contractors API</title>
+</head>
+<body>
+    <h1>Testing Contractors API</h1>
+    <div id="results"></div>
+
+    <script>
+        async function testContractorsAPI() {
+            try {
+                const response = await fetch('http://localhost:5000/api/contractors');
+                const data = await response.json();
+                
+                console.log('Contractors API Response:', data);
+                
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = '<h2>Contractors API Response:</h2><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                
+                // Also test deliveries to see if contractor_id is properly set
+                const deliveriesResponse = await fetch('http://localhost:5000/api/deliveries');
+                const deliveriesData = await deliveriesResponse.json();
+                
+                console.log('Deliveries API Response:', deliveriesData);
+                resultsDiv.innerHTML += '<h2>Deliveries API Response:</h2><pre>' + JSON.stringify(deliveriesData, null, 2) + '</pre>';
+                
+                // Check if deliveries have contractor_id
+                const deliveries = deliveriesData.deliveries || deliveriesData;
+                const deliveriesWithContractors = deliveries.filter(d => d.contractor_id);
+                
+                resultsDiv.innerHTML += '<h2>Analysis:</h2>';
+                resultsDiv.innerHTML += '<p>Total deliveries: ' + deliveries.length + '</p>';
+                resultsDiv.innerHTML += '<p>Deliveries with contractor_id: ' + deliveriesWithContractors.length + '</p>';
+                
+                if (deliveriesWithContractors.length === 0) {
+                    resultsDiv.innerHTML += '<p style="color: red;">❌ ISSUE: No deliveries have contractor_id assigned!</p>';
+                } else {
+                    resultsDiv.innerHTML += '<p style="color: green;">✅ Some deliveries have contractor_id assigned</p>';
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('results').innerHTML = '<p style="color: red;">Error: ' + error.message + '</p>';
+            }
+        }
+        
+        window.addEventListener('load', testContractorsAPI);
+    </script>
+</body>
+</html>

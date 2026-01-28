@@ -12,7 +12,7 @@ const crusherPaymentSchema = new mongoose.Schema({
         get: v => Math.round(v * 100) / 100,
         set: v => Math.round(v * 100) / 100
     },
-    payment_method: {
+    method: {
         type: String,
         maxlength: 50
     },
@@ -22,6 +22,9 @@ const crusherPaymentSchema = new mongoose.Schema({
     },
     note: {
         type: String
+    },
+    payment_image: {
+        type: String // Base64 encoded image data
     },
     paid_at: {
         type: Date,

@@ -6,15 +6,28 @@ class CrusherService {
     static async getAllCrushers() {
         const crushers = await Crusher.find().sort({ name: 1 });
 
-        const result = crushers.map(crusher => ({
-            id: crusher._id,
-            name: crusher.name,
-            sand_price: crusher.sand_price,
-            aggregate1_price: crusher.aggregate1_price,
-            aggregate2_price: crusher.aggregate2_price,
-            aggregate3_price: crusher.aggregate3_price,
-            created_at: crusher.created_at
-        }));
+        // Calculate totals for each crusher
+        const result = await Promise.all(
+            crushers.map(async (crusher) => {
+                const totals = await this.computeCrusherTotals(crusher._id);
+                return {
+                    id: crusher._id,
+                    name: crusher.name,
+                    sand_price: crusher.sand_price,
+                    aggregate1_price: crusher.aggregate1_price,
+                    aggregate2_price: crusher.aggregate2_price,
+                    aggregate3_price: crusher.aggregate3_price,
+                    created_at: crusher.created_at,
+                    // Add calculated totals
+                    totalVolume: totals.totalVolume,
+                    deliveriesCount: totals.deliveriesCount,
+                    net: totals.net,
+                    totalRequired: totals.totalRequired,
+                    totalPaid: totals.totalPaid,
+                    totalAdjustments: totals.totalAdjustments
+                };
+            })
+        );
 
         return { crushers: result };
     }

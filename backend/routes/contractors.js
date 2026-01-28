@@ -56,4 +56,14 @@ router.put('/:id/adjustments/:adjustmentId', contractorsController.updateContrac
 // Delete contractor adjustment
 router.delete('/:id/adjustments/:adjustmentId', contractorsController.deleteContractorAdjustment);
 
+// ============================================================================
+// CONTRACTOR REPORTS
+// ============================================================================
+
+// Generate deliveries report
+router.get('/:id/reports/deliveries', contractorsController.generateDeliveriesReport);
+
+// Generate account statement
+router.get('/:id/reports/statement', contractorsController.generateAccountStatement);
+
 module.exports = router;

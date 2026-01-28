@@ -421,3 +421,21 @@
         grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     }
 }
+
+/* Detail Modal Styles */
+.detail-row {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.detail-row:last-child {
+    border-bottom: none;
+}
+
+.detail-row strong {
+    color: #333;
+    font-weight: 600;
+}

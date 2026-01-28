@@ -121,7 +121,7 @@ function renderSummary(totals) {
     container.innerHTML = `
         <div class="summary-item">
             <div class="summary-value ${openingBalanceClass}">${formatCurrency(Math.abs(openingBalance))}</div>
-            <div class="summary-label">الرصيد الافتتاحي ${openingBalanceLabel}</div>
+            <div class="summary-label">الرصيد الافتتاحي <small style="font-size: 0.75rem;">${openingBalanceLabel}</small></div>
         </div>
         <div class="summary-item">
             <div class="summary-value text-danger">${formatCurrency(totals.totalTrips || 0)}</div>
@@ -137,7 +137,7 @@ function renderSummary(totals) {
         </div>
         <div class="summary-item">
             <div class="summary-value ${balanceClass}">${formatCurrency(Math.abs(balance))}</div>
-            <div class="summary-label">الصافي - ${balanceLabel}</div>
+            <div class="summary-label">الصافي - <small style="font-size: 0.75rem;">${balanceLabel}</small></div>
         </div>
     `;
 }
@@ -400,7 +400,6 @@ function closeModal(modalId) {
             const form = document.getElementById('adjustmentForm');
             form.reset();
             delete form.dataset.editId;
-            document.getElementById('adjustmentDetailsGroup').style.display = 'none';
         }
     }
 }
@@ -555,7 +554,6 @@ function setupEventHandlers() {
         const form = document.getElementById('adjustmentForm');
         form.reset();
         form.removeAttribute('data-edit-id'); // Clear edit mode
-        document.getElementById('adjustmentDetailsGroup').style.display = 'none';
         document.getElementById('adjustmentMessage').innerHTML = '';
         showModal('adjustmentModal');
     });
@@ -581,28 +579,6 @@ function setupEventHandlers() {
         } else {
             detailsGroup.style.display = 'none';
             imageGroup.style.display = 'none';
-            detailsInput.required = false;
-        }
-    });
-
-    // Adjustment method change handler
-    document.getElementById('adjustmentMethod').addEventListener('change', (e) => {
-        const detailsGroup = document.getElementById('adjustmentDetailsGroup');
-        const detailsInput = document.getElementById('adjustmentDetails');
-
-        if (['بنكي', 'شيك', 'انستاباي', 'فودافون كاش'].includes(e.target.value)) {
-            detailsGroup.style.display = 'block';
-            detailsInput.required = true;
-
-            if (e.target.value === 'شيك') {
-                detailsInput.placeholder = 'رقم الشيك';
-            } else if (e.target.value === 'بنكي') {
-                detailsInput.placeholder = 'رقم المعاملة البنكية';
-            } else {
-                detailsInput.placeholder = 'رقم المعاملة';
-            }
-        } else {
-            detailsGroup.style.display = 'none';
             detailsInput.required = false;
         }
     });
@@ -707,13 +683,8 @@ function setupEventHandlers() {
         const contractorId = getContractorIdFromURL();
         const amount = document.getElementById('adjustmentAmount').value;
         const reason = document.getElementById('adjustmentReason').value;
-        const method = document.getElementById('adjustmentMethod').value;
-        const details = document.getElementById('adjustmentDetails').value;
 
-        const adjustmentData = { amount, reason, method };
-        if (details) {
-            adjustmentData.details = details;
-        }
+        const adjustmentData = { amount, reason };
 
         const form = e.target;
         const editId = form.dataset.editId;
@@ -732,7 +703,6 @@ function setupEventHandlers() {
             // Clear form and edit mode
             document.getElementById('adjustmentForm').reset();
             form.removeAttribute('data-edit-id');
-            document.getElementById('adjustmentDetailsGroup').style.display = 'none';
 
             setTimeout(() => {
                 closeModal('adjustmentModal');
@@ -1233,19 +1203,7 @@ window.editAdjustment = function (adjustmentId) {
 
     // Fill form with adjustment data
     document.getElementById('adjustmentAmount').value = adjustment.amount;
-    document.getElementById('adjustmentMethod').value = adjustment.method || '';
-    document.getElementById('adjustmentDetails').value = adjustment.details || '';
     document.getElementById('adjustmentReason').value = adjustment.reason || '';
-
-    // Show/hide details group based on method
-    const method = adjustment.method || '';
-    const detailsGroup = document.getElementById('adjustmentDetailsGroup');
-
-    if (['بنكي', 'شيك', 'انستاباي', 'فودافون كاش'].includes(method)) {
-        detailsGroup.style.display = 'block';
-    } else {
-        detailsGroup.style.display = 'none';
-    }
 
     // Set form to edit mode
     const form = document.getElementById('adjustmentForm');
@@ -1398,19 +1356,58 @@ window.toggleDateInputs = function () {
         dateInputs.style.display = 'none';
     }
 };
-// Event delegation for CSP compliance - SIMPLIFIED
+// Event delegation for CSP compliance - COMPLETE
 document.addEventListener('click', function (e) {
     const action = e.target.getAttribute('data-action');
     const target = e.target.getAttribute('data-target');
+    const type = e.target.getAttribute('data-type');
+    const id = e.target.getAttribute('data-id');
 
     console.log('Click detected on element:', e.target);
-    console.log('data-action:', action);
-    console.log('data-target:', target);
+    console.log('data-action:', action, 'data-type:', type, 'data-id:', id, 'data-target:', target);
 
-    // ONLY handle data-action attributes - NO TEXT MATCHING
+    // Handle modal close
     if (action === 'close-modal' && target) {
         console.log('Closing modal:', target);
         closeModal(target);
+        return;
     }
-    // Remove all other event handling to prevent unwanted triggers
+
+    // Handle CRUD operations
+    if (action && type && id) {
+        e.preventDefault(); // Prevent any default behavior
+        e.stopPropagation(); // Stop event bubbling
+        
+        console.log(`Handling ${action} ${type} with ID: ${id}`);
+        
+        try {
+            if (action === 'edit') {
+                if (type === 'delivery') {
+                    console.log('Calling editDelivery');
+                    window.editDelivery(id);
+                } else if (type === 'payment') {
+                    console.log('Calling editPayment');
+                    window.editPayment(id);
+                } else if (type === 'adjustment') {
+                    console.log('Calling editAdjustment');
+                    window.editAdjustment(id);
+                }
+            } else if (action === 'delete') {
+                if (type === 'delivery') {
+                    console.log('Calling deleteDelivery');
+                    window.deleteDelivery(id);
+                } else if (type === 'payment') {
+                    console.log('Calling deletePayment');
+                    window.deletePayment(id);
+                } else if (type === 'adjustment') {
+                    console.log('Calling deleteAdjustment');
+                    window.deleteAdjustment(id);
+                }
+            }
+        } catch (error) {
+            console.error('Error executing CRUD operation:', error);
+        }
+        
+        return; // Exit early to prevent other handlers
+    }
 });

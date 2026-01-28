@@ -52,7 +52,7 @@ class ExpensesController {
             const expense = await expenseService.createExpense(req.body);
             res.status(201).json(expense);
         } catch (err) {
-            if (err.message === 'التاريخ والفئة والوصف والمبلغ مطلوبة') {
+            if (err.message === 'التاريخ والوصف والمبلغ مطلوبة') {
                 return res.status(400).json({ message: err.message });
             }
             next(err);
@@ -70,7 +70,7 @@ class ExpensesController {
 
             res.json(expense);
         } catch (err) {
-            if (err.message === 'التاريخ والفئة والوصف والمبلغ مطلوبة') {
+            if (err.message === 'التاريخ والوصف والمبلغ مطلوبة') {
                 return res.status(400).json({ message: err.message });
             }
             next(err);

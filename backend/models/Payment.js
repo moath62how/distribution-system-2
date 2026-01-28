@@ -23,6 +23,9 @@ const paymentSchema = new mongoose.Schema({
     note: {
         type: String
     },
+    payment_image: {
+        type: String // Base64 encoded image
+    },
     paid_at: {
         type: Date,
         default: Date.now
